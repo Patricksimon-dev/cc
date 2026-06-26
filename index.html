@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>christ chosen asemmbly ministy</title>
+  <link rel="icon" type="image/png" href="image/77.png">
+  <script src="https://formspree.io/js/formbutton-v1.min.js" defer></script>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet"href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+
+
+</head>
+
+<body>
+
+  <div class="welcome-overlay" id="welcomeOverlay" aria-hidden="true">
+    <div class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+      <div class="welcome-icon"><img src="image/88888.png" alt=""></div>
+      <h2 id="welcomeTitle">Welcome to Christ Chosen Assembly Ministry</h2>
+      <p>We are glad you are here. May your visit bring peace, encouragement, and divine connection.</p>
+      <button type="button" class="welcome-btn" id="welcomeClose">Enter Site</button>
+    </div>
+  </div>
+
+  <!-- NAVBAR -->
+  <header class="header">
+
+    <nav class="navbar">
+
+      <div class="nav-top">
+        <div class="nav-left"></div>
+
+        <a class="logo" href="#home">
+          <img src="image/77.png" alt="Church Logo">
+        </a>
+
+        <button class="hamburger" id="hamburger" aria-label="Open navigation menu">☰</button>
+      </div>
+
+      <div class="nav-bottom">
+        <ul class="nav-menu" id="navMenu">
+          <li><a href="#home">Home</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#sermons">Sermons</a></li>
+          <li><a href="#leadership">Leadership</a></li>
+          <!--v<li><a href="#events">Events</a></li>-->
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+
+        <form class="nav-search" action="https://www.google.com/search" method="get" target="_blank" role="search">
+          <label class="sr-only" for="navGoogleSearch">Search Google</label>
+          <input id="navGoogleSearch" name="q" type="search" placeholder="Search Google" autocomplete="off">
+          <button type="submit" aria-label="Search Google">Go</button>
+        </form>
+      </div>
+
+    </nav>
+
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="home">
+
+    <div class="hero-overlay"></div>
+
+    <div class="hero-content">
+      <div class="hero-text">
+        <p class="eyebrow">Welcome to our church</p>
+        <h1 class="hero-title">
+          <span class="hero-line hero-line-top">
+            <span>CHRIST</span>
+            <span>CHOSEN</span>
+          </span>
+          <span class="hero-line hero-line-bottom">
+            <span>ASSEMBLY</span>
+            <span>MINISTRY</span>
+          </span>
+        </h1>
+        <div class="hero-image">
+          <img src="image/77.png" alt="Church logo">
+        </div>
+        <h3 class="subline">Surely Jesus is alive.  Rev 1:18</h3>
+      </div>
+
+
+    </div>
+
+  </section>
+  <!--leadership-->
+  <!-- PASTOR SECTION -->
+  <section class="pastor" id="leadership">
+
+    <div class="section-title">
+      <p class="eyebrow">Our Leadership by:</p>
+      <h2>Our Leadership</h2>
+    </div>
+    
+    <div class="pastor-container">
+
+      <div class="pastor-card leader-card" aria-labelledby="pastor-name">
+
+        <div class="pastor-text" id="pastor-info">
+          <div class="pastor-image" role="img" aria-label="Pastor Idoko Ekele">
+            <img src="image/00.png" alt="Pastor Idoko Ekele">
+            <div class="pastor-badge">My Picture</div>
+          </div>
+
+          <h2 id="pastor-name">Pst: Ekele Idoko Mark</h2>
+          <p class="leader-title">General Overseer (G.O) of this Ministry</p>
+
+          <p class="pastor-description"><strong>The Pastor Descriptions:</strong> Pastor Idoko Ekele is passionate about teaching the Word of God and helping people discover purpose through Christ. He leads with compassion and a vision to reach the community.</p>
+
+          <div class="join-us">
+            <h3>JOIN US:</h3>
+            <ul>
+              <li>In worship.</li>
+              <li>For Prayer.</li>
+              <li>And our live changing encounter with God sermons.</li>
+              <li>Life with Christ transformable Counselling.</li>
+              <li>Come, and be blessed.</li>
+            </ul>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- COUNTDOWN -->
+  <section class="countdown-section">
+
+    <h2>Next Sunday Service Starts In</h2>
+
+    <div class="countdown">
+
+      <div class="time-box">
+        <span id="days">00</span>
+        <small>Days</small>
+      </div>
+
+      <div class="time-box">
+        <span id="hours">00</span>
+        <small>Hours</small>
+      </div>
+
+      <div class="time-box">
+        <span id="minutes">00</span>
+        <small>Minutes</small>
+      </div>
+
+      <div class="time-box">
+        <span id="seconds">00</span>
+        <small>Seconds</small>
+      </div>
+
+    </div>
+
+  </section>
+  <!-- SERVICE TIMES -->
+  <section class="services">
+    <div class="section-title">
+      <h2>Service Times</h2>
+    </div>
+
+    <div class="service-cards">
+
+      <div class="card">
+        <h3>Sunday Worship</h3>
+        <p>7:30AM - 10:30AM</p>
+      </div>
+
+      <div class="card">
+        <h3>Bible Study</h3>
+        <p>Tuesday - 5:00PM to 7:00PM</p>
+      </div>
+
+      <div class="card">
+        <h3>Hour of Revival</h3>
+        <p>Saturday - 6:00PM to 8:00PM</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="about" id="about">
+    <div class="about">
+      <div class="about-image">
+        <img src="image/5.JPG" alt="Church ministry">
+      </div>
+
+      <div class="about-text">
+
+        <h2>About his Ministry</h2>
+
+        <p>
+          the ministry is about proclaming the gospel of our lord jesus christ, about is good works of salvation to the whole world. join us as a christ chosen assembly ministry to reach out  to the unbelievers to win soul for eternity
+
+        </p>
+
+        <h3>
+          <div class="social-icons">
+            <a href="https://www.facebook.com/idoko.ekele.14/" target="_blank">
+              <i class="fab fa-facebook-f"></i>
+            </a>
+            <a href=https://www.instagram.com/christchosenassemblyministry?utm_source=qr&igsh=MXEwY2ZncHMxOXlxMA==" target="_blank">
+              <i class="fab fa-instagram"></i>
+            </a>
+
+            <a href="https://x.com/christchosenassemblymin" target="_blank">
+              <i class="fab fa-x-twitter"></i>
+            </a>
+
+            <a href="https://linkedin.com/in/christchosenassemblymin" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+
+            <a href="https://youtube.com/@christchosenassemblymin" target="_blank">
+              <i class="fab fa-youtube"></i>
+            </a>
+
+            <a href="https://tiktok.com/@christchosenassemblymin" target="_blank">
+              <i class="fab fa-tiktok"></i>
+            </a>
+          </div>
+        </h3>
+
+        
+        
+
+      </div>
+    </div>
+  </section>
+
+  <!-- SERMONS -->
+  <section class="sermons" id="sermons">
+
+    <div class="section-title">
+      <p class="eyebrow">Weekly messages</p>
+      <h2>Latest Sermons</h2>
+      <p class="section-copy">Fresh teaching to equip your faith, strengthen your prayer life, and inspire worship in every season.</p>
+    </div>
+
+    <div class="sermon-filter" role="tablist" aria-label="Filter sermons">
+      <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
+      <button class="filter-btn" data-filter="faith" role="tab" aria-selected="false">Faith</button>
+      <button class="filter-btn" data-filter="prayer" role="tab" aria-selected="false">Prayer</button>
+      <button class="filter-btn" data-filter="worship" role="tab" aria-selected="false">Worship</button>
+    </div>
+
+    <div class="sermon-grid">
+
+      <article class="sermon-card faith" tabindex="0">
+        <div class="sermon-card-header">
+          <span class="sermon-tag">Faith</span>
+          <time datetime="2026-05-28">May 28, 2026</time>
+        </div>
+
+        <h3>Walking By Faith</h3>
+        <p>Experience a powerful reflection on Psalm 105:15 and discover how God’s chosen stand firm when the world changes around them.</p>
+
+        <details>
+          <summary>Read full message</summary>
+          <div class="sermon-copy">
+            <p>MINDSET IN THE WORD OF GOD. Psalms 105:15 Saying, Touch not mine anointed, and do my prophets no harm.</p>
+            <p>REFLECTION: The scriptural quote here refers to God's covenant on his chosen. This refers to one who is spiritually anointed to do His work without looking back. These people are inspired by the Holy Spirit and live for the glory of God.</p>
+            <p>PRAYER: Whatever ways in your life that would make Jesus say, "I know you not, depart from me" is cancelled by the blood of Jesus Christ. God bless you richly in Jesus’ name.</p>
+          </div>
+        </details>
+
+        <div class="sermon-meta">
+          <span>Scripture: Psalm 105:15</span>
+          <span>Duration: 18 min</span>
+        </div>
+
+        <a href="#contact" class="sermon-btn">Listen Now</a>
+      </article>
+
+      <article class="sermon-card prayer" tabindex="0">
+        <div class="sermon-card-header">
+          <span class="sermon-tag">Prayer</span>
+          <time datetime="2026-05-21">May 21, 2026</time>
+        </div>
+
+        <h3>Power Of Prayer</h3>
+        <p>Discover why Jesus Christ is the best alternative in our lives and how prayer connects us directly to the heart of God.</p>
+
+        <details>
+          <summary>Read full message</summary>
+          <div class="sermon-copy">
+            <p>BRIEF MINDSET IN THE WORD OF GOD. REFLECTION: WHY JESUS CHRIST IS THE BEST ALTERNATIVE IN OUR LIVES? (Part 1.)</p>
+            <p>TEXTS: Heb 1:5, 7-9, 11-12. For to which of the angels did God ever say, You are my Son, this day have I begotten you?</p>
+            <p>Jesus is our mediator, our eternal King, and the source of victory over every challenge. As heirs of God, we walk in righteousness and triumph through His sacrifice.</p>
+          </div>
+        </details>
+
+        <div class="sermon-meta">
+          <span>Scripture: Hebrews 1</span>
+          <span>Duration: 22 min</span>
+        </div>
+
+        <a href="#contact" class="sermon-btn">Listen Now</a>
+      </article>
+
+      <article class="sermon-card worship" tabindex="0">
+        <div class="sermon-card-header">
+          <span class="sermon-tag">Worship</span>
+          <time datetime="2026-05-14">May 14, 2026</time>
+        </div>
+
+        <h3>Heart Of Worship</h3>
+        <p>Step into a worship encounter that honours God's protection and invites His presence into every part of your day.</p>
+
+        <details>
+          <summary>Read full message</summary>
+          <div class="sermon-copy">
+            <p>MORNING PRAYER DEW. Numbers 23:23 Surely there is no enchantment against Jacob...</p>
+            <p>REFLECTION: Encounter God's protection. As you step out today, every dark authority assigned against you shall fall, and you will possess your promises in Jesus’ name.</p>
+            <p>May the grace and love of God be with you richly in Jesus’ name.</p>
+          </div>
+        </details>
+
+        <div class="sermon-meta">
+          <span>Scripture: Numbers 23:23</span>
+          <span>Duration: 16 min</span>
+        </div>
+
+        <a href="#contact" class="sermon-btn">Listen Now</a>
+      </article>
+
+    </div>
+
+  </section>
+
+  <!-- EVENTS -->
+  <!--<section class="events" id="events">
+
+    <div class="section-title">
+      <h2>Upcoming Events</h2>
+    </div>
+
+    <div class="event-slider" id="slider">
+
+      <div class="event-card">
+        <h3>Youth Conference</h3>
+        <p>July 18, 2026</p>
+      </div>
+
+      <div class="event-card">
+        <h3>Night Of Worship</h3>
+        <p>August 2, 2026</p>
+      </div>
+
+      <div class="event-card">
+        <h3>Prayer Revival</h3>
+        <p>August 20, 2026</p>
+      </div>
+
+    </div>
+
+  </section> -->
+
+  <!-- GALLERY -->
+  
+
+  <!-- CONTACT -->
+  <section class="contact" id="contact">
+    <div class="section-title">
+      <p class="eyebrow">Get in Touch</p>
+      <h2>Contact & Prayer Request</h2>
+      <p class="section-copy">PRAYER REQUESTS: Share your prayer request with us confidently. We respect your privacy and will pray for every needs with care and compassion.</p>
+    </div>
+
+    <div class="contact-grid">
+      <div class="contact-intro">
+        <div class="contact-cards">
+          <article class="contact-card">
+            <span class="contact-icon"><i class="fas fa-map-marker-alt"></i></span>
+            <div>
+              <h3>Visit Us</h3>
+              <p>15 Anikulapo St, Agege Lagos, Nigeria</p>
+            </div>
+          </article>
+
+          <article class="contact-card">
+            <span class="contact-icon"><i class="fas fa-phone-alt"></i></span>
+            <div>
+              <h3>Call Us</h3>
+              <p>+234 901 248 4878</p>
+            </div>
+          </article>
+
+          <article class="contact-card">
+            <span class="contact-icon"><i class="fas fa-envelope"></i></span>
+            <div>
+              <h3>Email</h3>
+              <p>christchosenassemblymin@gmail.com</p>
+            </div>
+          </article>
+
+          <article class="contact-card">
+            <span class="contact-icon"><i class="fas fa-hands-praying"></i></span>
+            <div>
+              <h3>Prayer Support</h3>
+              <p>Our prayer team is ready to stand with you in faith.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="contact-note">
+          Please, fill the following spaces below:
+          <ul class="prayer-requests-list">
+            <li>Your Full Names</li>
+            <li>Your Email Address</li>
+            <li>Your message</li>
+          </ul>
+        </div>
+      </div>
+      <form action="https://api.web3forms.com/submit" method="POST" class="contact-form">
+        <input type="hidden" name="access_key" value="8b8a88e0-77d0-475f-8c48-d771b156c4d4">
+        <input type="hidden" name="subject" value="New Contact Form Message">
+        <input type="hidden" name="redirect" value="thankyou.html">
+        <input type="text" name="name" placeholder="full Name" required>
+        <input type="email" name="email" placeholder="your email address" required>
+        <textarea name="message" placeholder="Write your message here..." required></textarea>
+        <button type="submit">Submit</button>
+      </form>
+
+      
+    </div>
+  </section>
+  <!-- DONATION -->
+  <section class="donation" id="donate">
+    <div class="donation-overlay"></div>
+    <div class="donation-content">
+      <div class="donation-header">
+        <h2>Sow Into The Kingdom</h2>
+        <p class="verse">"Give, and it will be given to you. A good measure, pressed down, shaken together and running over, will be poured into your lap." - Luke 6:38</p>
+      </div>
+
+      <div class="donation-cards">
+        <div class="donation-card">
+          <div class="icon">🙏</div>
+          <h3>Spread The Gospel</h3>
+          <p>Support our evangelism and outreach programs reaching souls for Christ.</p>
+        </div>
+
+        <div class="donation-card">
+          <div class="icon">📖</div>
+          <h3>Build Our Community</h3>
+          <p>Help us maintain and expand our church facilities for worship and discipleship.</p>
+        </div>
+
+        <div class="donation-card">
+          <div class="icon">❤️</div>
+          <h3>Minister To The Needy</h3>
+          <p>Your giving helps us serve the poor and support those in crisis.</p>
+        </div>
+      </div>
+
+      <!-- <div class="donation-cta">
+        <p class="main-text">Every tithe and offering strengthens God's work in our community and beyond.</p>
+        <button onclick="payWithPaystack()" class="donate-btn">
+          Give Offering
+        </button>-->
+
+        <div class="bank-info">
+          <h4>Bank Transfer Details</h4>
+          <p><strong>Name:</strong> Ekele Idoko Mark</p>
+          <p><strong>Account number:</strong> 3054917540</p>
+          <p><strong>Bank name:</strong> First Bank</p>
+        </div>
+
+        <p class="subtitle">Your generosity is a blessing to the Kingdom of God</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-container">
+      
+      <!-- Footer Brand -->
+      <div class="footer-brand">
+        <img src="image/88888.png" alt="Church Logo">
+        <h3>Christ Chosen Assembly Ministry</h3>
+        <p class="tagline">Surely Jesus is alive - Rev 1:18</p>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="footer-section">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="#home">Home</a></li>
+          <li><a href="#about">About Us</a></li>
+          <li><a href="#sermons">Sermons</a></li>
+          <li><a href="#events">Events</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+
+      <!-- Contact Info -->
+      <div class="footer-section">
+        <h4>Contact Us</h4>
+        <p><span>📍</span> 15 Anikulapo St, Agege Lagos, Nigeria</p>
+        <p><span>📞</span> +234 9012484878</p>
+        <p><span>✉️</span> christchosenassemblymin@gmail.com</p>
+      </div>
+
+      <!-- Service Times -->
+      <div class="footer-section">
+        <h4>Service Times</h4>
+        <p><strong>Sunday Worship</strong><br>8:00 AM - 11:00 AM</p>
+        <p><strong>Midweek Service</strong><br>Wednesday - 5:00 PM</p>
+        <p><strong>Prayer Meeting</strong><br>Friday - 6:00 PM</p>
+      </div>
+
+    </div>
+
+    <!-- Footer Bottom -->
+    <div class="footer-bottom">
+      <p>&copy; 2026 Christ Chosen Assembly Ministry. All Rights Reserved.</p>
+      <p class="social-links">Follow us on social media</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
