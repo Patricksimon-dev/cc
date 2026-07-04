@@ -9,6 +9,7 @@ require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+const host = process.env.HOST || '0.0.0.0';
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'data', 'app.json');
 const jwtSecret = process.env.JWT_SECRET || 'church-secret';
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@church.com';
@@ -271,7 +272,7 @@ app.use((err, req, res, next) => {
 function startServer(portNumber = port) {
   initDb();
   return new Promise((resolve) => {
-    const server = app.listen(portNumber, () => {
+    const server = app.listen(portNumber, host, () => {
       resolve({ server, port: server.address().port });
     });
   });
