@@ -12,8 +12,8 @@ const port = process.env.PORT || 5000;
 const host = process.env.HOST || '0.0.0.0';
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'data', 'app.json');
 const jwtSecret = process.env.JWT_SECRET || 'church-secret';
-const adminEmail = process.env.ADMIN_EMAIL || 'admin@church.com';
-const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+const adminEmail = process.env.ADMIN_EMAIL || 'simonogar025@gmail.com';
+const adminPassword = process.env.ADMIN_PASSWORD || 'christchosen123@kl';
 
 const dataDir = path.dirname(dbPath);
 const uploadsDir = path.join(__dirname, 'uploads');

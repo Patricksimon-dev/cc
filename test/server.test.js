@@ -5,8 +5,8 @@ const fs = require('fs');
 
 process.env.DB_PATH = path.join(__dirname, '..', 'data', 'test.json');
 process.env.JWT_SECRET = 'test-secret';
-process.env.ADMIN_EMAIL = 'admin@church.com';
-process.env.ADMIN_PASSWORD = 'admin123';
+process.env.ADMIN_EMAIL = 'simonogar025@gmail.com';
+process.env.ADMIN_PASSWORD = 'christchosen123@kl';
 
 const { startServer, normalizePlatforms, publishToSocialPlatforms } = require('../server');
 
@@ -32,8 +32,8 @@ test('admin login returns a JWT token', async () => {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      email: 'admin@church.com',
-      password: 'admin123',
+      email: 'simonogar025@gmail.com',
+      password: 'christchosen123@kl',
     }),
   });
 
@@ -48,8 +48,8 @@ test('announcements can be created by an authenticated admin', async () => {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      email: 'admin@church.com',
-      password: 'admin123',
+      email: 'simonogar025@gmail.com',
+      password: 'christchosen123@kl',
     }),
   });
 
