@@ -88,7 +88,7 @@
       document.getElementById('loginMessage').textContent = 'Signing in...';
 
       try {
-        const response = await fetch(`${window.location.origin}/api/auth/login`, {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(payload),

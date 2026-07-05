@@ -11,6 +11,28 @@
     {
       "media_url": "",
       "media_name": "",
+      "id": 1783191342358,
+      "title": "hyt",
+      "message": "hermymgfhyxdm",
+      "audience": "Church family",
+      "platforms": [
+        "website"
+      ],
+      "media_type": "text",
+      "status": "published",
+      "publish_now": true,
+      "created_at": "2026-07-04T18:55:42.358Z",
+      "social_publish_results": [
+        {
+          "platform": "website",
+          "status": "posted",
+          "note": "Stored on website"
+        }
+      ]
+    },
+    {
+      "media_url": "",
+      "media_name": "",
       "id": 1783188834147,
       "title": "Live test announcement",
       "message": "This is a verification announcement for the new site sections.",
