@@ -199,7 +199,11 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
+
+const staticRoots = [path.join(__dirname, '..', 'public'), __dirname].filter((candidate) => fs.existsSync(candidate));
+if (staticRoots.length) {
+  app.use(express.static(staticRoots[0]));
+}
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization || '';
