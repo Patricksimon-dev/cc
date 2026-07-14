@@ -206,6 +206,10 @@ app.get('/admin', (_req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+app.get('/admin.html', (_req, res) => {
+  res.redirect(301, '/admin');
+});
+
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
 

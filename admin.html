@@ -5,16 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: goldenrod; color: #222; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #050505 0%, #111111 45%, #1c1400 100%);
+      color: #f7e7b3;
+      min-height: 100vh;
+    }
     .shell { max-width: 960px; margin: 0 auto; padding: 32px 20px 60px; }
-    .card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
-    h1, h2 { margin-top: 0; }
+    .card {
+      background: rgba(15, 15, 15, 0.95);
+      border: 1px solid #c99b1b;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+    h1, h2 { margin-top: 0; color: #f2c94c; }
     form { display: grid; gap: 12px; }
-    input, textarea, select, button { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid #d8c79f; }
-    button { background: #b5840d; color: #fff; cursor: pointer; border: none; }
+    input, textarea, select, button {
+      font: inherit;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #8f6b0f;
+      background: #161616;
+      color: #fff;
+    }
+    button {
+      background: linear-gradient(135deg, #c99712 0%, #e0b43b 100%);
+      color: #111;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
     .grid { display: grid; gap: 16px; }
-    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #f7db7c; margin-right: 8px; }
-    .muted { color: #6b5c2d; font-size: 0.95rem; }
+    .pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #8c6000;
+      color: #ffe8a8;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    .muted { color: #d8b55e; font-size: 0.95rem; }
+    label { color: #f5e0a3; }
   </style>
 </head>
 <body>
