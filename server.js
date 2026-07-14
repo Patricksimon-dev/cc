@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -10,13 +11,32 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 const host = process.env.HOST || '0.0.0.0';
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'data', 'app.json');
 const jwtSecret = process.env.JWT_SECRET || 'church-secret';
 const adminEmail = process.env.ADMIN_EMAIL || 'simonogar025@gmail.com';
 const adminPassword = process.env.ADMIN_PASSWORD || 'christchosen123@kl';
 
+function resolveStoragePaths() {
+  const isServerless = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const tempRoot = path.join(os.tmpdir(), 'ccam');
+  const tempDbPath = path.join(tempRoot, 'data', 'app.json');
+  const tempUploadsDir = path.join(tempRoot, 'uploads');
+
+  if (process.env.DB_PATH) {
+    return { dbPath: process.env.DB_PATH, uploadsDir: process.env.UPLOADS_DIR || tempUploadsDir };
+  }
+
+  if (isServerless) {
+    return { dbPath: tempDbPath, uploadsDir: tempUploadsDir };
+  }
+
+  return {
+    dbPath: path.join(__dirname, 'data', 'app.json'),
+    uploadsDir: path.join(__dirname, 'uploads'),
+  };
+}
+
+const { dbPath, uploadsDir } = resolveStoragePaths();
 const dataDir = path.dirname(dbPath);
-const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -349,4 +369,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, startServer, normalizePlatforms, publishToSocialPlatforms };
+module.exports = { app, startServer, normalizePlatforms, publishToSocialPlatforms, resolveStoragePaths };
