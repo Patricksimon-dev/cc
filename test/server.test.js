@@ -40,7 +40,7 @@ test('admin login returns a JWT token', async () => {
   assert.equal(response.status, 200);
   const data = await response.json();
   assert.ok(data.token);
-  assert.equal(data.admin.email, 'admin@church.com');
+  assert.equal(data.admin.email, process.env.ADMIN_EMAIL);
 });
 
 test('announcements can be created by an authenticated admin', async () => {

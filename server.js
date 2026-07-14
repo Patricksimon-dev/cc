@@ -143,6 +143,7 @@ function writeStore(store) {
 
 function initDb() {
   const store = readStore();
+
   if (!store.admins || !store.admins.length) {
     store.admins = [{
       id: 1,
@@ -151,7 +152,18 @@ function initDb() {
       created_at: new Date().toISOString(),
     }];
     writeStore(store);
+    return store;
   }
+
+  // Ensure the primary admin record matches the environment variables.
+  const primary = store.admins[0];
+  const passwordMatches = primary.password_hash && bcrypt.compareSync(adminPassword, primary.password_hash);
+  if (primary.email !== adminEmail || !passwordMatches) {
+    primary.email = adminEmail;
+    primary.password_hash = bcrypt.hashSync(adminPassword, 10);
+    writeStore(store);
+  }
+
   return store;
 }
 
@@ -214,6 +226,55 @@ app.post('/api/auth/login', (req, res) => {
 
   const token = jwt.sign({ id: admin.id, email: admin.email }, jwtSecret, { expiresIn: '8h' });
   return res.json({ token, admin: { id: admin.id, email: admin.email } });
+});
+
+// Reset admin credentials (requires current admin token)
+app.post('/api/auth/reset', authenticateToken, (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  const currentStore = readStore();
+  const primary = currentStore.admins && currentStore.admins[0];
+  if (!primary) {
+    return res.status(500).json({ error: 'No admin record found' });
+  }
+
+  primary.email = email;
+  primary.password_hash = bcrypt.hashSync(password, 10);
+  writeStore(currentStore);
+
+  return res.json({ ok: true, admin: { id: primary.id, email: primary.email } });
+});
+
+// Reset admin credentials using an admin reset secret
+app.post('/api/auth/reset-secret', (req, res) => {
+  const { email, password, secret } = req.body;
+  const resetSecret = process.env.ADMIN_RESET_SECRET || '';
+
+  if (!resetSecret) {
+    return res.status(403).json({ error: 'Reset by secret is not enabled' });
+  }
+
+  if (!secret || secret !== resetSecret) {
+    return res.status(401).json({ error: 'Invalid reset secret' });
+  }
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  const currentStore = readStore();
+  if (!currentStore.admins || !currentStore.admins.length) {
+    currentStore.admins = [{ id: 1, email, password_hash: bcrypt.hashSync(password, 10), created_at: new Date().toISOString() }];
+  } else {
+    currentStore.admins[0].email = email;
+    currentStore.admins[0].password_hash = bcrypt.hashSync(password, 10);
+  }
+  writeStore(currentStore);
+
+  return res.json({ ok: true, admin: { id: currentStore.admins[0].id, email: currentStore.admins[0].email } });
 });
 
 app.get('/api/announcements', (_req, res) => {
