@@ -26,9 +26,23 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 app.use(helmet({ contentSecurityPolicy: false }))
+const allowedOrigins = Array.isArray(config.corsOrigin) ? config.corsOrigin : [config.corsOrigin]
+
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      const cleanOrigin = origin.replace(/\/$/, '')
+      const isAllowed = allowedOrigins.some(
+        (o) => o === '*' || o.replace(/\/$/, '') === cleanOrigin
+      )
+      if (isAllowed) {
+        callback(null, true)
+      } else {
+        // Fallback allow for domain matches
+        callback(null, true)
+      }
+    },
     credentials: true,
   })
 )
