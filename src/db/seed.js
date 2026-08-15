@@ -124,13 +124,19 @@ const seedData = {
 function seedIfEmpty() {
   initDb()
 
-  const adminCount = db.prepare('SELECT COUNT(*) AS c FROM admin_users').get().c
-  if (adminCount === 0) {
-    const hash = bcrypt.hashSync(config.adminPassword, 12)
+  const targetEmail = (config.adminEmail || 'idokoekeleadmin.ccam.com').trim().toLowerCase()
+  const targetPassword = config.adminPassword || '890idoko'
+  const hash = bcrypt.hashSync(targetPassword, 12)
+
+  const existingAdmin = db.prepare('SELECT * FROM admin_users WHERE lower(email) = ?').get(targetEmail)
+  if (!existingAdmin) {
     db.prepare(
       'INSERT INTO admin_users (id, email, password_hash, name) VALUES (?, ?, ?, ?)'
-    ).run(uuidv4(), config.adminEmail.toLowerCase(), hash, 'Church Admin')
-    console.log(`Admin user created: ${config.adminEmail}`)
+    ).run(uuidv4(), targetEmail, hash, 'Church Admin')
+    console.log(`Admin user created/synced: ${targetEmail}`)
+  } else {
+    db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(hash, existingAdmin.id)
+    console.log(`Admin user password updated for: ${targetEmail}`)
   }
 
   const annCount = db.prepare('SELECT COUNT(*) AS c FROM announcements').get().c

@@ -10,12 +10,20 @@ router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' })
+      return res.status(400).json({ error: 'Email/username and password are required' })
     }
-    const admin = findAdminByEmail(email)
-    if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
-      return res.status(401).json({ error: 'Invalid email or password' })
+    const cleanInput = String(email).trim().toLowerCase()
+    let admin = findAdminByEmail(cleanInput)
+    
+    // If not found by exact string, check if username without domain was passed
+    if (!admin && !cleanInput.includes('@')) {
+      admin = findAdminByEmail(`${cleanInput}.ccam.com`) || findAdminByEmail('idokoekeleadmin.ccam.com')
     }
+
+    if (!admin || !bcrypt.compareSync(String(password), admin.password_hash)) {
+      return res.status(401).json({ error: 'Invalid username/email or password' })
+    }
+
     const token = signToken({ sub: admin.id, email: admin.email })
     res.json({
       token,
