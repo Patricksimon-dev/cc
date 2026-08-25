@@ -80,6 +80,7 @@ export async function initializeContentPersistence() {
   } else {
     await saveContentSnapshot()
   }
+  await cleanupOrphanedUploads()
 }
 
 export function getUploadBucket() {
@@ -96,6 +97,24 @@ export async function deleteUploadByUrl(value) {
   } catch (err) {
     if (err.code !== 'ENOENT') throw err
   }
+}
+
+export async function cleanupOrphanedUploads() {
+  if (!uploadBucket) return
+  const referencedIds = new Set(
+    [
+      ...db.prepare('SELECT image_url FROM leadership WHERE image_url IS NOT NULL').all(),
+      ...db.prepare('SELECT image_url FROM events WHERE image_url IS NOT NULL').all(),
+    ]
+      .map((row) => row.image_url?.split('/').pop())
+      .filter((id) => mongoose.isValidObjectId(id))
+  )
+  const files = await uploadBucket.find({}).toArray()
+  await Promise.all(
+    files
+      .filter((file) => !referencedIds.has(file._id.toString()))
+      .map((file) => uploadBucket.delete(file._id))
+  )
 }
 
 export async function saveContentSnapshot() {
