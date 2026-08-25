@@ -4,6 +4,7 @@ import multer from 'multer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
+import { config } from '../config.js'
 import {
   contentRepositories,
   updateAboutPage,
@@ -52,7 +53,7 @@ router.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' })
   }
-  const fileUrl = `/api/uploads/${req.file.filename}`
+  const fileUrl = `${config.apiPublicUrl}/api/uploads/${req.file.filename}`
   res.json({ url: fileUrl })
 })
 
