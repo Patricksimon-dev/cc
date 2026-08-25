@@ -87,6 +87,17 @@ export function getUploadBucket() {
   return uploadBucket
 }
 
+export async function deleteUploadByUrl(value) {
+  if (!value || !uploadBucket) return
+  const id = value.split('/').pop()
+  if (!mongoose.isValidObjectId(id)) return
+  try {
+    await uploadBucket.delete(new mongoose.Types.ObjectId(id))
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err
+  }
+}
+
 export async function saveContentSnapshot() {
   if (!mongoReady) return
   await ContentState.findOneAndUpdate(

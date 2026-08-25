@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
-import { getUploadBucket } from '../db/contentPersistence.js'
+import { deleteUploadByUrl, getUploadBucket } from '../db/contentPersistence.js'
 import {
   contentRepositories,
   updateAboutPage,
@@ -17,7 +17,7 @@ const COLLECTIONS = Object.keys(contentRepositories)
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }
 })
 
 function stripMeta(body) {
@@ -49,7 +49,9 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     })
     fileId.end(req.file.buffer)
     fileId.on('finish', () => {
-      res.json({ url: `${config.apiPublicUrl}/api/uploads/${fileId.id}` })
+      deleteUploadByUrl(req.body.previousUrl)
+        .then(() => res.json({ url: `${config.apiPublicUrl}/api/uploads/${fileId.id}` }))
+        .catch(next)
     })
     fileId.on('error', next)
   } catch (err) {
@@ -119,6 +121,9 @@ for (const type of COLLECTIONS) {
     const existing = getItemByType(type, req.params.id)
     if (!existing) return res.status(404).json({ error: 'Not found' })
     try {
+      if (type === 'leadership') {
+        await deleteUploadByUrl(existing.imageUrl)
+      }
       await repo.remove(req.params.id)
       res.status(204).send()
     } catch (err) {
