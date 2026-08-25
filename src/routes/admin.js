@@ -1,10 +1,9 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import multer from 'multer'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
+import { getUploadBucket } from '../db/contentPersistence.js'
 import {
   contentRepositories,
   updateAboutPage,
@@ -16,18 +15,8 @@ import { publishToSocial } from '../services/socialPublisher.js'
 const router = Router()
 const COLLECTIONS = Object.keys(contentRepositories)
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads'))
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    cb(null, uniqueSuffix + path.extname(file.originalname))
-  }
-})
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 })
 
@@ -49,22 +38,41 @@ async function maybeShare(contentType, item, meta) {
 
 router.use(requireAuth)
 
-router.post('/upload', upload.single('file'), (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res, next) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' })
   }
-  const fileUrl = `${config.apiPublicUrl}/api/uploads/${req.file.filename}`
-  res.json({ url: fileUrl })
+  try {
+    const bucket = getUploadBucket()
+    const fileId = bucket.openUploadStream(req.file.originalname, {
+      contentType: req.file.mimetype,
+    })
+    fileId.end(req.file.buffer)
+    fileId.on('finish', () => {
+      res.json({ url: `${config.apiPublicUrl}/api/uploads/${fileId.id}` })
+    })
+    fileId.on('error', next)
+  } catch (err) {
+    next(err)
+  }
 })
 
-router.put('/about', (req, res) => {
-  const about = updateAboutPage(req.body)
-  res.json(about)
+router.put('/about', async (req, res, next) => {
+  try {
+    const about = await updateAboutPage(req.body)
+    res.json(about)
+  } catch (err) {
+    next(err)
+  }
 })
 
-router.delete('/about', (req, res) => {
-  deleteAboutPage()
-  res.status(204).send()
+router.delete('/about', async (req, res, next) => {
+  try {
+    await deleteAboutPage()
+    res.status(204).send()
+  } catch (err) {
+    next(err)
+  }
 })
 
 for (const type of COLLECTIONS) {
@@ -78,7 +86,7 @@ for (const type of COLLECTIONS) {
     try {
       const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
       const id = uuidv4()
-      const item = repo.create(id, rest)
+      const item = await repo.create(id, rest)
       const socialResults = await maybeShare(type, item, {
         shareToSocial,
         platforms,
@@ -95,7 +103,7 @@ for (const type of COLLECTIONS) {
       const existing = getItemByType(type, req.params.id)
       if (!existing) return res.status(404).json({ error: 'Not found' })
       const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
-      const item = repo.update(req.params.id, rest)
+      const item = await repo.update(req.params.id, rest)
       const socialResults = await maybeShare(type, item, {
         shareToSocial,
         platforms,
@@ -107,11 +115,15 @@ for (const type of COLLECTIONS) {
     }
   })
 
-  router.delete(`/${type}/:id`, (req, res) => {
+  router.delete(`/${type}/:id`, async (req, res, next) => {
     const existing = getItemByType(type, req.params.id)
     if (!existing) return res.status(404).json({ error: 'Not found' })
-    repo.remove(req.params.id)
-    res.status(204).send()
+    try {
+      await repo.remove(req.params.id)
+      res.status(204).send()
+    } catch (err) {
+      next(err)
+    }
   })
 }
 

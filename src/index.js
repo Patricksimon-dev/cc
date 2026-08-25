@@ -14,8 +14,11 @@ import socialRoutes from './routes/social.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { getPublicContent } from './services/contentService.js'
+import { getUploadBucket, initializeContentPersistence } from './db/contentPersistence.js'
+import mongoose from 'mongoose'
 
 initDb()
+await initializeContentPersistence()
 
 const app = express()
 
@@ -49,6 +52,19 @@ app.use(
 app.use(express.json({ limit: '100mb' }))
 app.use(express.urlencoded({ limit: '100mb', extended: true }))
 app.use('/api/uploads', express.static(uploadsDir))
+app.get('/api/uploads/:id', (req, res, next) => {
+  try {
+    const bucket = getUploadBucket()
+    const fileId = new mongoose.Types.ObjectId(req.params.id)
+    bucket.find({ _id: fileId }).next().then((file) => {
+      if (!file) return res.status(404).end()
+      res.type(file.contentType || 'application/octet-stream')
+      bucket.openDownloadStream(fileId).on('error', next).pipe(res)
+    }).catch(next)
+  } catch (err) {
+    next(err)
+  }
+})
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

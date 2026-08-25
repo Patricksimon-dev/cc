@@ -64,5 +64,5 @@ export const mailTransporter = nodemailer.createTransport({
 });
 
 if (config.mongoUri) {
-  console.info('MongoDB connection is optional in this SQLite-backed server; set MONGODB_URI only when you want the legacy model path.');
+  console.info('MongoDB content persistence is enabled.');
 }

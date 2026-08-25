@@ -1,4 +1,5 @@
 import db from '../db/database.js'
+import { saveContentSnapshot } from '../db/contentPersistence.js'
 
 function mapAnnouncement(row) {
   return {
@@ -112,23 +113,30 @@ export const contentRepositories = {
         .prepare('SELECT * FROM announcements ORDER BY pinned DESC, date DESC')
         .all()
         .map(mapAnnouncement),
-    create: (id, body) => {
+    create: async (id, body) => {
       db.prepare(
         'INSERT INTO announcements (id, title, content, date, pinned) VALUES (?, ?, ?, ?, ?)'
       ).run(id, body.title, body.content, body.date, body.pinned ? 1 : 0)
-      return getItemByType('announcements', id)
+      const item = getItemByType('announcements', id)
+      await saveContentSnapshot()
+      return item
     },
-    update: (id, body) => {
+    update: async (id, body) => {
       db.prepare(
         'UPDATE announcements SET title = ?, content = ?, date = ?, pinned = ? WHERE id = ?'
       ).run(body.title, body.content, body.date, body.pinned ? 1 : 0, id)
-      return getItemByType('announcements', id)
+      const item = getItemByType('announcements', id)
+      await saveContentSnapshot()
+      return item
     },
-    remove: (id) => db.prepare('DELETE FROM announcements WHERE id = ?').run(id),
+    remove: async (id) => {
+      db.prepare('DELETE FROM announcements WHERE id = ?').run(id)
+      await saveContentSnapshot()
+    },
   },
   sermons: {
     list: () => db.prepare('SELECT * FROM sermons ORDER BY date DESC').all().map(mapSermon),
-    create: (id, body) => {
+    create: async (id, body) => {
       db.prepare(
         `INSERT INTO sermons (id, title, preacher, date, scripture, summary, video_url, audio_url)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -142,9 +150,11 @@ export const contentRepositories = {
         body.videoUrl || '',
         body.audioUrl || ''
       )
-      return getItemByType('sermons', id)
+      const item = getItemByType('sermons', id)
+      await saveContentSnapshot()
+      return item
     },
-    update: (id, body) => {
+    update: async (id, body) => {
       db.prepare(
         `UPDATE sermons SET title = ?, preacher = ?, date = ?, scripture = ?, summary = ?,
          video_url = ?, audio_url = ? WHERE id = ?`
@@ -158,29 +168,41 @@ export const contentRepositories = {
         body.audioUrl || '',
         id
       )
-      return getItemByType('sermons', id)
+      const item = getItemByType('sermons', id)
+      await saveContentSnapshot()
+      return item
     },
-    remove: (id) => db.prepare('DELETE FROM sermons WHERE id = ?').run(id),
+    remove: async (id) => {
+      db.prepare('DELETE FROM sermons WHERE id = ?').run(id)
+      await saveContentSnapshot()
+    },
   },
   activities: {
     list: () => db.prepare('SELECT * FROM activities').all().map(mapActivity),
-    create: (id, body) => {
+    create: async (id, body) => {
       db.prepare(
         'INSERT INTO activities (id, title, day, time, location, description) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(id, body.title, body.day, body.time, body.location || '', body.description)
-      return getItemByType('activities', id)
+      const item = getItemByType('activities', id)
+      await saveContentSnapshot()
+      return item
     },
-    update: (id, body) => {
+    update: async (id, body) => {
       db.prepare(
         'UPDATE activities SET title = ?, day = ?, time = ?, location = ?, description = ? WHERE id = ?'
       ).run(body.title, body.day, body.time, body.location || '', body.description, id)
-      return getItemByType('activities', id)
+      const item = getItemByType('activities', id)
+      await saveContentSnapshot()
+      return item
     },
-    remove: (id) => db.prepare('DELETE FROM activities WHERE id = ?').run(id),
+    remove: async (id) => {
+      db.prepare('DELETE FROM activities WHERE id = ?').run(id)
+      await saveContentSnapshot()
+    },
   },
   events: {
     list: () => db.prepare('SELECT * FROM events ORDER BY date ASC').all().map(mapEvent),
-    create: (id, body) => {
+    create: async (id, body) => {
       db.prepare(
         'INSERT INTO events (id, title, date, time, location, description, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
@@ -192,9 +214,11 @@ export const contentRepositories = {
         body.description,
         body.imageUrl || ''
       )
-      return getItemByType('events', id)
+      const item = getItemByType('events', id)
+      await saveContentSnapshot()
+      return item
     },
-    update: (id, body) => {
+    update: async (id, body) => {
       db.prepare(
         `UPDATE events SET title = ?, date = ?, time = ?, location = ?, description = ?, image_url = ?
          WHERE id = ?`
@@ -207,39 +231,54 @@ export const contentRepositories = {
         body.imageUrl || '',
         id
       )
-      return getItemByType('events', id)
+      const item = getItemByType('events', id)
+      await saveContentSnapshot()
+      return item
     },
-    remove: (id) => db.prepare('DELETE FROM events WHERE id = ?').run(id),
+    remove: async (id) => {
+      db.prepare('DELETE FROM events WHERE id = ?').run(id)
+      await saveContentSnapshot()
+    },
   },
   leadership: {
     list: () => db.prepare('SELECT * FROM leadership').all().map(mapLeader),
-    create: (id, body) => {
+    create: async (id, body) => {
       db.prepare(
         'INSERT INTO leadership (id, name, role, bio, image_url) VALUES (?, ?, ?, ?, ?)'
       ).run(id, body.name, body.role, body.bio, body.imageUrl || '')
-      return getItemByType('leadership', id)
+      const item = getItemByType('leadership', id)
+      await saveContentSnapshot()
+      return item
     },
-    update: (id, body) => {
+    update: async (id, body) => {
       db.prepare(
         'UPDATE leadership SET name = ?, role = ?, bio = ?, image_url = ? WHERE id = ?'
       ).run(body.name, body.role, body.bio, body.imageUrl || '', id)
-      return getItemByType('leadership', id)
+      const item = getItemByType('leadership', id)
+      await saveContentSnapshot()
+      return item
     },
-    remove: (id) => db.prepare('DELETE FROM leadership WHERE id = ?').run(id),
+    remove: async (id) => {
+      db.prepare('DELETE FROM leadership WHERE id = ?').run(id)
+      await saveContentSnapshot()
+    },
   },
 }
 
-export function updateAboutPage(body) {
+export async function updateAboutPage(body) {
   db.prepare(
     `INSERT OR REPLACE INTO about_page
      (id, welcome_title, welcome_text, mission, vision, history, values_text)
      VALUES (1, ?, ?, ?, ?, ?, ?)`
   ).run(body.welcomeTitle, body.welcomeText, body.mission, body.vision, body.history, body.values)
-  return mapAbout(db.prepare('SELECT * FROM about_page WHERE id = 1').get())
+  const about = mapAbout(db.prepare('SELECT * FROM about_page WHERE id = 1').get())
+  await saveContentSnapshot()
+  return about
 }
 
-export function deleteAboutPage() {
+export async function deleteAboutPage() {
   db.prepare('DELETE FROM about_page WHERE id = 1').run()
+  await saveContentSnapshot()
 }
 
 export function logSocialPublish(entry) {

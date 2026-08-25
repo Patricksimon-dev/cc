@@ -11,6 +11,8 @@ npm run dev
 
 API runs at **http://localhost:3001**.
 
+Content is synchronized to MongoDB when `MONGODB_URI` is configured. This is required in hosted environments so edits and uploads survive server restarts and redeployments. Set `API_PUBLIC_URL` to the public API origin so uploaded image URLs point to the API server.
+
 ## Default admin
 
 | Field | Value |
