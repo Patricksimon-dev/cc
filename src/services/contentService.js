@@ -231,10 +231,15 @@ export const contentRepositories = {
 
 export function updateAboutPage(body) {
   db.prepare(
-    `UPDATE about_page SET welcome_title = ?, welcome_text = ?, mission = ?, vision = ?, history = ?, values_text = ?
-     WHERE id = 1`
+    `INSERT OR REPLACE INTO about_page
+     (id, welcome_title, welcome_text, mission, vision, history, values_text)
+     VALUES (1, ?, ?, ?, ?, ?, ?)`
   ).run(body.welcomeTitle, body.welcomeText, body.mission, body.vision, body.history, body.values)
   return mapAbout(db.prepare('SELECT * FROM about_page WHERE id = 1').get())
+}
+
+export function deleteAboutPage() {
+  db.prepare('DELETE FROM about_page WHERE id = 1').run()
 }
 
 export function logSocialPublish(entry) {

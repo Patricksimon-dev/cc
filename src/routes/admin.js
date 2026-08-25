@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth.js'
 import {
   contentRepositories,
   updateAboutPage,
+  deleteAboutPage,
   getItemByType,
 } from '../services/contentService.js'
 import { publishToSocial } from '../services/socialPublisher.js'
@@ -58,6 +59,11 @@ router.post('/upload', upload.single('file'), (req, res) => {
 router.put('/about', (req, res) => {
   const about = updateAboutPage(req.body)
   res.json(about)
+})
+
+router.delete('/about', (req, res) => {
+  deleteAboutPage()
+  res.status(204).send()
 })
 
 for (const type of COLLECTIONS) {

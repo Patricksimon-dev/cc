@@ -139,18 +139,31 @@ function seedIfEmpty() {
     console.log(`Admin user password updated for: ${targetEmail}`)
   }
 
-  const annCount = db.prepare('SELECT COUNT(*) AS c FROM announcements').get().c
-  if (annCount === 0) {
+  const seedMarker = db.prepare("SELECT value FROM app_meta WHERE key = 'content_seeded'").get()
+  const hasContent = db.prepare(`
+    SELECT EXISTS(
+      SELECT 1 FROM announcements
+      UNION ALL SELECT 1 FROM sermons
+      UNION ALL SELECT 1 FROM activities
+      UNION ALL SELECT 1 FROM events
+      UNION ALL SELECT 1 FROM leadership
+      UNION ALL SELECT 1 FROM about_page
+    ) AS present
+  `).get().present
+
+  if (!seedMarker && !hasContent) {
+    const annCount = db.prepare('SELECT COUNT(*) AS c FROM announcements').get().c
+    if (annCount === 0) {
     const insertAnn = db.prepare(
       'INSERT INTO announcements (id, title, content, date, pinned) VALUES (?, ?, ?, ?, ?)'
     )
     for (const row of seedData.announcements) {
       insertAnn.run(uuidv4(), row.title, row.content, row.date, row.pinned)
     }
-  }
+    }
 
-  const sermonCount = db.prepare('SELECT COUNT(*) AS c FROM sermons').get().c
-  if (sermonCount === 0) {
+    const sermonCount = db.prepare('SELECT COUNT(*) AS c FROM sermons').get().c
+    if (sermonCount === 0) {
     const insert = db.prepare(
       `INSERT INTO sermons (id, title, preacher, date, scripture, summary, video_url, audio_url)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -167,20 +180,20 @@ function seedIfEmpty() {
         row.audio_url
       )
     }
-  }
+    }
 
-  const actCount = db.prepare('SELECT COUNT(*) AS c FROM activities').get().c
-  if (actCount === 0) {
+    const actCount = db.prepare('SELECT COUNT(*) AS c FROM activities').get().c
+    if (actCount === 0) {
     const insert = db.prepare(
       'INSERT INTO activities (id, title, day, time, location, description) VALUES (?, ?, ?, ?, ?, ?)'
     )
     for (const row of seedData.activities) {
       insert.run(uuidv4(), row.title, row.day, row.time, row.location, row.description)
     }
-  }
+    }
 
-  const evCount = db.prepare('SELECT COUNT(*) AS c FROM events').get().c
-  if (evCount === 0) {
+    const evCount = db.prepare('SELECT COUNT(*) AS c FROM events').get().c
+    if (evCount === 0) {
     const insert = db.prepare(
       'INSERT INTO events (id, title, date, time, location, description, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
@@ -195,26 +208,29 @@ function seedIfEmpty() {
         row.image_url
       )
     }
-  }
+    }
 
-  const leadCount = db.prepare('SELECT COUNT(*) AS c FROM leadership').get().c
-  if (leadCount === 0) {
+    const leadCount = db.prepare('SELECT COUNT(*) AS c FROM leadership').get().c
+    if (leadCount === 0) {
     const insert = db.prepare(
       'INSERT INTO leadership (id, name, role, bio, image_url) VALUES (?, ?, ?, ?, ?)'
     )
     for (const row of seedData.leadership) {
       insert.run(uuidv4(), row.name, row.role, row.bio, row.image_url)
     }
-  }
+    }
 
-  const aboutCount = db.prepare('SELECT COUNT(*) AS c FROM about_page').get().c
-  if (aboutCount === 0) {
+    const aboutCount = db.prepare('SELECT COUNT(*) AS c FROM about_page').get().c
+    if (aboutCount === 0) {
     const a = seedData.about
     db.prepare(
       `INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text)
        VALUES (1, ?, ?, ?, ?, ?, ?)`
     ).run(a.welcome_title, a.welcome_text, a.mission, a.vision, a.history, a.values_text)
+    }
   }
+
+  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('content_seeded', '1')").run()
 }
 
 seedIfEmpty()
