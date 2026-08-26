@@ -13,6 +13,10 @@ API runs at **http://localhost:3001**.
 
 Content is synchronized to MongoDB when `MONGODB_URI` is configured. This is required in hosted environments so edits and uploads survive server restarts and redeployments. Set `API_PUBLIC_URL` to the public API origin so uploaded image URLs point to the API server.
 
+Default demo content is disabled unless `SEED_DEFAULT_CONTENT=true` is explicitly configured.
+
+To inspect uploaded media storage, run `npm run cleanup-uploads`. To remove all uploaded files from GridFS and free Atlas storage, run `npm run cleanup-uploads -- --delete-all`. This does not remove leadership or event records, but their old image links will need to be replaced.
+
 ## Default admin
 
 | Field | Value |

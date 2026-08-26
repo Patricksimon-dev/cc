@@ -151,7 +151,7 @@ function seedIfEmpty() {
     ) AS present
   `).get().present
 
-  if (!seedMarker && !hasContent) {
+  if (config.seedDefaultContent && !seedMarker && !hasContent) {
     const annCount = db.prepare('SELECT COUNT(*) AS c FROM announcements').get().c
     if (annCount === 0) {
     const insertAnn = db.prepare(

@@ -15,6 +15,7 @@ export const config = {
   adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   publicSiteUrl: (process.env.PUBLIC_SITE_URL || 'http://localhost:5173').replace(/\/$/, ''),
   apiPublicUrl: (process.env.API_PUBLIC_URL || 'https://christchosen.onrender.com').replace(/\/$/, ''),
+  seedDefaultContent: process.env.SEED_DEFAULT_CONTENT === 'true',
   emailUser: process.env.EMAIL_USER,
   emailPass: process.env.EMAIL_PASS,
   mongoUri: process.env.MONGODB_URI,
