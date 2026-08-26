@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "seed": "node src/db/seed.js",
     "cleanup-uploads": "node src/db/cleanupUploads.js",
     "clear-content": "node src/db/clearContent.js"
   },

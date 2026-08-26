@@ -1,316 +1,150 @@
-import db from '../db/database.js'
-import { saveContentSnapshot } from '../db/contentPersistence.js'
+import mongoose from 'mongoose'
+import bcrypt from 'bcryptjs'
+import { v4 as uuidv4 } from 'uuid'
+import { ContentState } from '../db/contentPersistence.js'
+import { config } from '../config.js'
 
-function mapAnnouncement(row) {
+const emptyContent = {
+  announcements: [],
+  sermons: [],
+  activities: [],
+  events: [],
+  leadership: [],
+  about: null,
+}
+
+let contentDocument = null
+
+function getDocument() {
+  if (!contentDocument) throw new Error('MongoDB content store is not initialized')
+  return contentDocument
+}
+
+function publicContent(content) {
   return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    date: row.date,
-    pinned: Boolean(row.pinned),
+    announcements: [...(content.announcements || [])].sort((a, b) => Number(b.pinned) - Number(a.pinned) || String(b.date).localeCompare(String(a.date))),
+    sermons: [...(content.sermons || [])].sort((a, b) => String(b.date).localeCompare(String(a.date))),
+    activities: content.activities || [],
+    events: [...(content.events || [])].sort((a, b) => String(a.date).localeCompare(String(b.date))),
+    leadership: content.leadership || [],
+    about: content.about || null,
   }
 }
 
-function mapSermon(row) {
-  return {
-    id: row.id,
-    title: row.title,
-    preacher: row.preacher,
-    date: row.date,
-    scripture: row.scripture || '',
-    summary: row.summary,
-    videoUrl: row.video_url || '',
-    audioUrl: row.audio_url || '',
+function normalizeContent(content = {}) {
+  const map = {
+    announcements: (item) => ({ ...item, pinned: Boolean(item.pinned) }),
+    sermons: (item) => ({ ...item, videoUrl: item.videoUrl ?? item.video_url ?? '', audioUrl: item.audioUrl ?? item.audio_url ?? '' }),
+    activities: (item) => ({ ...item }),
+    events: (item) => ({ ...item, imageUrl: item.imageUrl ?? item.image_url ?? '' }),
+    leadership: (item) => ({ ...item, imageUrl: item.imageUrl ?? item.image_url ?? '' }),
   }
-}
-
-function mapActivity(row) {
-  return {
-    id: row.id,
-    title: row.title,
-    day: row.day,
-    time: row.time,
-    location: row.location || '',
-    description: row.description,
+  const normalized = { ...emptyContent, ...content }
+  for (const [type, mapper] of Object.entries(map)) {
+    normalized[type] = (normalized[type] || []).map(mapper)
   }
-}
-
-function mapEvent(row) {
-  return {
-    id: row.id,
-    title: row.title,
-    date: row.date,
-    time: row.time,
-    location: row.location,
-    description: row.description,
-    imageUrl: row.image_url || '',
-  }
-}
-
-function mapLeader(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    role: row.role,
-    bio: row.bio,
-    imageUrl: row.image_url || '',
-  }
-}
-
-function mapAbout(row) {
-  if (!row) {
-    return {
-      welcomeTitle: '',
-      welcomeText: '',
-      mission: '',
-      vision: '',
-      history: '',
-      values: '',
+  if (normalized.about && normalized.about.welcome_title) {
+    normalized.about = {
+      welcomeTitle: normalized.about.welcomeTitle ?? normalized.about.welcome_title ?? '',
+      welcomeText: normalized.about.welcomeText ?? normalized.about.welcome_text ?? '',
+      mission: normalized.about.mission ?? '', vision: normalized.about.vision ?? '',
+      history: normalized.about.history ?? '', values: normalized.about.values ?? normalized.about.values_text ?? '',
     }
   }
-  return {
-    welcomeTitle: row.welcome_title,
-    welcomeText: row.welcome_text,
-    mission: row.mission,
-    vision: row.vision,
-    history: row.history,
-    values: row.values_text,
+  return normalized
+}
+
+async function save() {
+  await contentDocument.save()
+}
+
+export async function initializeContentStore() {
+  if (!config.mongoUri) {
+    throw new Error('MONGODB_URI must be configured; this server no longer uses SQLite')
+  }
+  const saved = await ContentState.findOne({ key: 'church-content' })
+  contentDocument = saved || new ContentState({ key: 'church-content', content: { ...emptyContent } })
+  contentDocument.content = normalizeContent(contentDocument.content)
+  contentDocument.markModified('content')
+  if (!saved) await save()
+  else await save()
+  const admins = mongoose.connection.db.collection('admins')
+  const email = config.adminEmail.trim().toLowerCase()
+  const existingAdmin = await admins.findOne({ email })
+  if (!existingAdmin) {
+    await admins.insertOne({ id: uuidv4(), email, password_hash: bcrypt.hashSync(config.adminPassword, 12), name: 'Church Admin', created_at: new Date() })
   }
 }
 
-export function getPublicContent() {
-  const announcements = db
-    .prepare('SELECT * FROM announcements ORDER BY pinned DESC, date DESC')
-    .all()
-    .map(mapAnnouncement)
-  const sermons = db.prepare('SELECT * FROM sermons ORDER BY date DESC').all().map(mapSermon)
-  const activities = db.prepare('SELECT * FROM activities').all().map(mapActivity)
-  const events = db.prepare('SELECT * FROM events ORDER BY date ASC').all().map(mapEvent)
-  const leadership = db.prepare('SELECT * FROM leadership').all().map(mapLeader)
-  const about = mapAbout(db.prepare('SELECT * FROM about_page WHERE id = 1').get())
-
-  return { announcements, sermons, activities, events, leadership, about }
+export async function getPublicContent() {
+  return publicContent(getDocument().content)
 }
 
-export function getItemByType(type, id) {
-  const maps = {
-    announcements: { table: 'announcements', map: mapAnnouncement },
-    sermons: { table: 'sermons', map: mapSermon },
-    activities: { table: 'activities', map: mapActivity },
-    events: { table: 'events', map: mapEvent },
-    leadership: { table: 'leadership', map: mapLeader },
+export async function getItemByType(type, id) {
+  return getDocument().content[type]?.find((item) => item.id === id) || null
+}
+
+export const contentRepositories = {}
+for (const type of ['announcements', 'sermons', 'activities', 'events', 'leadership']) {
+  contentRepositories[type] = {
+    list: async () => publicContent(getDocument().content)[type],
+    create: async (id, body) => {
+      const item = { id, ...body }
+      getDocument().content[type].unshift(item)
+      getDocument().markModified('content')
+      await save()
+      return item
+    },
+    update: async (id, body) => {
+      const items = getDocument().content[type]
+      const index = items.findIndex((item) => item.id === id)
+      if (index < 0) return null
+      items[index] = { ...items[index], ...body, id }
+      getDocument().markModified('content')
+      await save()
+      return items[index]
+    },
+    remove: async (id) => {
+      const items = getDocument().content[type]
+      getDocument().content[type] = items.filter((item) => item.id !== id)
+      getDocument().markModified('content')
+      await save()
+    },
   }
-  const cfg = maps[type]
-  if (!cfg) return null
-  const row = db.prepare(`SELECT * FROM ${cfg.table} WHERE id = ?`).get(id)
-  return row ? cfg.map(row) : null
-}
-
-export const contentRepositories = {
-  announcements: {
-    list: () =>
-      db
-        .prepare('SELECT * FROM announcements ORDER BY pinned DESC, date DESC')
-        .all()
-        .map(mapAnnouncement),
-    create: async (id, body) => {
-      db.prepare(
-        'INSERT INTO announcements (id, title, content, date, pinned) VALUES (?, ?, ?, ?, ?)'
-      ).run(id, body.title, body.content, body.date, body.pinned ? 1 : 0)
-      const item = getItemByType('announcements', id)
-      await saveContentSnapshot()
-      return item
-    },
-    update: async (id, body) => {
-      db.prepare(
-        'UPDATE announcements SET title = ?, content = ?, date = ?, pinned = ? WHERE id = ?'
-      ).run(body.title, body.content, body.date, body.pinned ? 1 : 0, id)
-      const item = getItemByType('announcements', id)
-      await saveContentSnapshot()
-      return item
-    },
-    remove: async (id) => {
-      db.prepare('DELETE FROM announcements WHERE id = ?').run(id)
-      await saveContentSnapshot()
-    },
-  },
-  sermons: {
-    list: () => db.prepare('SELECT * FROM sermons ORDER BY date DESC').all().map(mapSermon),
-    create: async (id, body) => {
-      db.prepare(
-        `INSERT INTO sermons (id, title, preacher, date, scripture, summary, video_url, audio_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
-        id,
-        body.title,
-        body.preacher,
-        body.date,
-        body.scripture || '',
-        body.summary,
-        body.videoUrl || '',
-        body.audioUrl || ''
-      )
-      const item = getItemByType('sermons', id)
-      await saveContentSnapshot()
-      return item
-    },
-    update: async (id, body) => {
-      db.prepare(
-        `UPDATE sermons SET title = ?, preacher = ?, date = ?, scripture = ?, summary = ?,
-         video_url = ?, audio_url = ? WHERE id = ?`
-      ).run(
-        body.title,
-        body.preacher,
-        body.date,
-        body.scripture || '',
-        body.summary,
-        body.videoUrl || '',
-        body.audioUrl || '',
-        id
-      )
-      const item = getItemByType('sermons', id)
-      await saveContentSnapshot()
-      return item
-    },
-    remove: async (id) => {
-      db.prepare('DELETE FROM sermons WHERE id = ?').run(id)
-      await saveContentSnapshot()
-    },
-  },
-  activities: {
-    list: () => db.prepare('SELECT * FROM activities').all().map(mapActivity),
-    create: async (id, body) => {
-      db.prepare(
-        'INSERT INTO activities (id, title, day, time, location, description) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(id, body.title, body.day, body.time, body.location || '', body.description)
-      const item = getItemByType('activities', id)
-      await saveContentSnapshot()
-      return item
-    },
-    update: async (id, body) => {
-      db.prepare(
-        'UPDATE activities SET title = ?, day = ?, time = ?, location = ?, description = ? WHERE id = ?'
-      ).run(body.title, body.day, body.time, body.location || '', body.description, id)
-      const item = getItemByType('activities', id)
-      await saveContentSnapshot()
-      return item
-    },
-    remove: async (id) => {
-      db.prepare('DELETE FROM activities WHERE id = ?').run(id)
-      await saveContentSnapshot()
-    },
-  },
-  events: {
-    list: () => db.prepare('SELECT * FROM events ORDER BY date ASC').all().map(mapEvent),
-    create: async (id, body) => {
-      db.prepare(
-        'INSERT INTO events (id, title, date, time, location, description, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(
-        id,
-        body.title,
-        body.date,
-        body.time,
-        body.location,
-        body.description,
-        body.imageUrl || ''
-      )
-      const item = getItemByType('events', id)
-      await saveContentSnapshot()
-      return item
-    },
-    update: async (id, body) => {
-      db.prepare(
-        `UPDATE events SET title = ?, date = ?, time = ?, location = ?, description = ?, image_url = ?
-         WHERE id = ?`
-      ).run(
-        body.title,
-        body.date,
-        body.time,
-        body.location,
-        body.description,
-        body.imageUrl || '',
-        id
-      )
-      const item = getItemByType('events', id)
-      await saveContentSnapshot()
-      return item
-    },
-    remove: async (id) => {
-      db.prepare('DELETE FROM events WHERE id = ?').run(id)
-      await saveContentSnapshot()
-    },
-  },
-  leadership: {
-    list: () => db.prepare('SELECT * FROM leadership').all().map(mapLeader),
-    create: async (id, body) => {
-      db.prepare(
-        'INSERT INTO leadership (id, name, role, bio, image_url) VALUES (?, ?, ?, ?, ?)'
-      ).run(id, body.name, body.role, body.bio, body.imageUrl || '')
-      const item = getItemByType('leadership', id)
-      await saveContentSnapshot()
-      return item
-    },
-    update: async (id, body) => {
-      db.prepare(
-        'UPDATE leadership SET name = ?, role = ?, bio = ?, image_url = ? WHERE id = ?'
-      ).run(body.name, body.role, body.bio, body.imageUrl || '', id)
-      const item = getItemByType('leadership', id)
-      await saveContentSnapshot()
-      return item
-    },
-    remove: async (id) => {
-      db.prepare('DELETE FROM leadership WHERE id = ?').run(id)
-      await saveContentSnapshot()
-    },
-  },
 }
 
 export async function updateAboutPage(body) {
-  db.prepare(
-    `INSERT OR REPLACE INTO about_page
-     (id, welcome_title, welcome_text, mission, vision, history, values_text)
-     VALUES (1, ?, ?, ?, ?, ?, ?)`
-  ).run(body.welcomeTitle, body.welcomeText, body.mission, body.vision, body.history, body.values)
-  const about = mapAbout(db.prepare('SELECT * FROM about_page WHERE id = 1').get())
-  await saveContentSnapshot()
-  return about
+  getDocument().content.about = {
+    welcomeTitle: body.welcomeTitle || '', welcomeText: body.welcomeText || '', mission: body.mission || '',
+    vision: body.vision || '', history: body.history || '', values: body.values || '',
+  }
+  getDocument().markModified('content')
+  await save()
+  return getDocument().content.about
 }
 
 export async function deleteAboutPage() {
-  db.prepare('DELETE FROM about_page WHERE id = 1').run()
-  await saveContentSnapshot()
+  getDocument().content.about = null
+  getDocument().markModified('content')
+  await save()
 }
 
-export function logSocialPublish(entry) {
-  db.prepare(
-    `INSERT INTO social_publish_log (id, content_type, content_id, platform, status, external_id, message, error)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    entry.id,
-    entry.contentType,
-    entry.contentId,
-    entry.platform,
-    entry.status,
-    entry.externalId || null,
-    entry.message || null,
-    entry.error || null
-  )
+export async function findAdminByEmail(email) {
+  return mongoose.connection.db.collection('admins').findOne({ email: email.toLowerCase() })
 }
 
-export function getSocialLogs(limit = 50) {
-  return db
-    .prepare('SELECT * FROM social_publish_log ORDER BY created_at DESC LIMIT ?')
-    .all(limit)
+export async function findAdminById(id) {
+  return mongoose.connection.db.collection('admins').findOne({ id }, { projection: { password_hash: 0 } })
 }
 
-export function findAdminByEmail(email) {
-  return db.prepare('SELECT * FROM admin_users WHERE email = ?').get(email.toLowerCase())
+export async function updateAdminPassword(id, passwordHash) {
+  await mongoose.connection.db.collection('admins').updateOne({ id }, { $set: { password_hash: passwordHash } })
 }
 
-export function findAdminById(id) {
-  return db.prepare('SELECT id, email, name, created_at FROM admin_users WHERE id = ?').get(id)
+export async function logSocialPublish(entry) {
+  await mongoose.connection.db.collection('social_logs').insertOne({ ...entry, created_at: new Date() })
 }
 
-export function updateAdminPassword(id, passwordHash) {
-  db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(passwordHash, id)
+export async function getSocialLogs(limit = 50) {
+  return mongoose.connection.db.collection('social_logs').find().sort({ created_at: -1 }).limit(limit).toArray()
 }

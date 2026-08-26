@@ -80,8 +80,12 @@ router.delete('/about', async (req, res, next) => {
 for (const type of COLLECTIONS) {
   const repo = contentRepositories[type]
 
-  router.get(`/${type}`, (req, res) => {
-    res.json(repo.list())
+  router.get(`/${type}`, async (req, res, next) => {
+    try {
+      res.json(await repo.list())
+    } catch (err) {
+      next(err)
+    }
   })
 
   router.post(`/${type}`, async (req, res, next) => {
@@ -102,7 +106,7 @@ for (const type of COLLECTIONS) {
 
   router.put(`/${type}/:id`, async (req, res, next) => {
     try {
-      const existing = getItemByType(type, req.params.id)
+      const existing = await getItemByType(type, req.params.id)
       if (!existing) return res.status(404).json({ error: 'Not found' })
       const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
       const item = await repo.update(req.params.id, rest)
@@ -118,7 +122,7 @@ for (const type of COLLECTIONS) {
   })
 
   router.delete(`/${type}/:id`, async (req, res, next) => {
-    const existing = getItemByType(type, req.params.id)
+    const existing = await getItemByType(type, req.params.id)
     if (!existing) return res.status(404).json({ error: 'Not found' })
     try {
       if (type === 'leadership') {

@@ -1,5 +1,4 @@
 import mongoose from 'mongoose'
-import db from './database.js'
 import { config } from '../config.js'
 
 const contentStateSchema = new mongoose.Schema(
@@ -13,53 +12,7 @@ const contentStateSchema = new mongoose.Schema(
 const ContentState = mongoose.models.ContentState || mongoose.model('ContentState', contentStateSchema)
 
 function readContent() {
-  return {
-    announcements: db.prepare('SELECT * FROM announcements').all(),
-    sermons: db.prepare('SELECT * FROM sermons').all(),
-    activities: db.prepare('SELECT * FROM activities').all(),
-    events: db.prepare('SELECT * FROM events').all(),
-    leadership: db.prepare('SELECT * FROM leadership').all(),
-    about: db.prepare('SELECT * FROM about_page WHERE id = 1').get() || null,
-  }
-}
-
-function replaceTable(table, rows, columns) {
-  db.prepare(`DELETE FROM ${table}`).run()
-  const placeholders = columns.map(() => '?').join(', ')
-  const insert = db.prepare(
-    `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`
-  )
-  for (const row of rows || []) {
-    insert.run(...columns.map((column) => row[column] ?? null))
-  }
-}
-
-function restoreContent(content) {
-  replaceTable('announcements', content.announcements, ['id', 'title', 'content', 'date', 'pinned'])
-  replaceTable('sermons', content.sermons, [
-    'id', 'title', 'preacher', 'date', 'scripture', 'summary', 'video_url', 'audio_url'
-  ])
-  replaceTable('activities', content.activities, ['id', 'title', 'day', 'time', 'location', 'description'])
-  replaceTable('events', content.events, [
-    'id', 'title', 'date', 'time', 'location', 'description', 'image_url'
-  ])
-  replaceTable('leadership', content.leadership, ['id', 'name', 'role', 'bio', 'image_url'])
-
-  db.prepare('DELETE FROM about_page').run()
-  if (content.about) {
-    db.prepare(
-      `INSERT INTO about_page
-       (id, welcome_title, welcome_text, mission, vision, history, values_text)
-       VALUES (1, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      content.about.welcome_title,
-      content.about.welcome_text,
-      content.about.mission,
-      content.about.vision,
-      content.about.history,
-      content.about.values_text
-    )
-  }
+  return { announcements: [], sermons: [], activities: [], events: [], leadership: [], about: null }
 }
 
 let mongoReady = false
@@ -76,11 +29,10 @@ export async function initializeContentPersistence() {
   uploadBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' })
   const saved = await ContentState.findOne({ key: 'church-content' }).lean()
   if (saved?.content) {
-    restoreContent(saved.content)
+    return
   } else {
     await saveContentSnapshot()
   }
-  await cleanupOrphanedUploads()
 }
 
 export function getUploadBucket() {
@@ -101,12 +53,10 @@ export async function deleteUploadByUrl(value) {
 
 export async function cleanupOrphanedUploads() {
   if (!uploadBucket) return
+  const content = (await ContentState.findOne({ key: 'church-content' }).lean())?.content || {}
   const referencedIds = new Set(
-    [
-      ...db.prepare('SELECT image_url FROM leadership WHERE image_url IS NOT NULL').all(),
-      ...db.prepare('SELECT image_url FROM events WHERE image_url IS NOT NULL').all(),
-    ]
-      .map((row) => row.image_url?.split('/').pop())
+    [...(content.leadership || []), ...(content.events || [])]
+      .map((row) => row.imageUrl?.split('/').pop())
       .filter((id) => mongoose.isValidObjectId(id))
   )
   const files = await uploadBucket.find({}).toArray()
@@ -116,6 +66,8 @@ export async function cleanupOrphanedUploads() {
       .map((file) => uploadBucket.delete(file._id))
   )
 }
+
+export { ContentState }
 
 export async function saveContentSnapshot() {
   if (!mongoReady) return

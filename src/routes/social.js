@@ -14,8 +14,8 @@ router.get('/status', (req, res) => {
   res.json(getSocialPlatformStatus())
 })
 
-router.get('/logs', (req, res) => {
-  res.json(getSocialLogs(100))
+router.get('/logs', (req, res, next) => {
+  getSocialLogs(100).then((logs) => res.json(logs)).catch(next)
 })
 
 router.post('/publish', async (req, res, next) => {
@@ -24,7 +24,7 @@ router.post('/publish', async (req, res, next) => {
     if (!contentType || !contentId || !platforms?.length) {
       return res.status(400).json({ error: 'contentType, contentId, and platforms are required' })
     }
-    const item = getItemByType(contentType, contentId)
+    const item = await getItemByType(contentType, contentId)
     if (!item) return res.status(404).json({ error: 'Content not found' })
     const results = await publishToSocial({
       contentType,

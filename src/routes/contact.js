@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import db from '../db/database.js'
+import mongoose from 'mongoose'
 import { mailTransporter, config } from '../config.js'
 
 const router = Router()
@@ -14,9 +14,14 @@ router.post('/contact', async (req, res, next) => {
 
   try {
     const id = uuidv4()
-    db.prepare(
-      'INSERT INTO contact_messages (id, name, email, subject, message) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, name.trim(), email.trim(), subject.trim(), message.trim())
+    await mongoose.connection.db.collection('contact_messages').insertOne({
+      id,
+      name: name.trim(),
+      email: email.trim(),
+      subject: subject.trim(),
+      message: message.trim(),
+      created_at: new Date(),
+    })
 
     const isEmailConfigured =
       config.emailUser &&

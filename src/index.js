@@ -6,19 +6,17 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { config } from './config.js'
-import { initDb } from './db/database.js'
-import './db/seed.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import socialRoutes from './routes/social.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
-import { getPublicContent } from './services/contentService.js'
+import { getPublicContent, initializeContentStore } from './services/contentService.js'
 import { getUploadBucket, initializeContentPersistence } from './db/contentPersistence.js'
 import mongoose from 'mongoose'
 
-initDb()
 await initializeContentPersistence()
+await initializeContentStore()
 
 const app = express()
 
@@ -42,8 +40,7 @@ app.use(
       if (isAllowed) {
         callback(null, true)
       } else {
-        // Fallback allow for domain matches
-        callback(null, true)
+        callback(new Error('Origin is not allowed by CORS'))
       }
     },
     credentials: true,
@@ -77,8 +74,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })
 })
 
-app.get('/api/content', (req, res) => {
-  res.json(getPublicContent())
+app.get('/api/content', async (req, res, next) => {
+  try {
+    res.json(await getPublicContent())
+  } catch (err) {
+    next(err)
+  }
 })
 
 app.use('/api', contactRoutes)

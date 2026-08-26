@@ -64,6 +64,19 @@ export const mailTransporter = nodemailer.createTransport({
   },
 });
 
+if (process.env.NODE_ENV === 'production') {
+  for (const [name, value] of Object.entries({
+    JWT_SECRET: process.env.JWT_SECRET,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    MONGODB_URI: process.env.MONGODB_URI,
+  })) {
+    if (!value || value.includes('change-this') || value === 'admin123') {
+      throw new Error(`${name} must be configured in production`)
+    }
+  }
+}
+
 if (config.mongoUri) {
   console.info('MongoDB content persistence is enabled.');
 }
