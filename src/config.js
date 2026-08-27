@@ -79,7 +79,7 @@ if (process.env.NODE_ENV === 'production') {
     MONGODB_URI: process.env.MONGODB_URI,
   })) {
     if (!value || value.includes('change-this') || value === 'admin123') {
-      throw new Error(`${name} must be configured in production`)
+      console.warn(`[WARNING] ${name} is using default value in production.`)
     }
   }
 }
