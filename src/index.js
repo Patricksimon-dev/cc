@@ -15,8 +15,19 @@ import { getPublicContent, initializeContentStore } from './services/contentServ
 import { getUploadBucket, initializeContentPersistence } from './db/contentPersistence.js'
 import mongoose from 'mongoose'
 
-await initializeContentPersistence()
+// Initialize local store immediately for instant server availability
 await initializeContentStore()
+
+// Connect to MongoDB in background without delaying server startup
+initializeContentPersistence()
+  .then((connected) => {
+    if (connected) {
+      return initializeContentStore()
+    }
+  })
+  .catch((err) => {
+    console.warn('Background Mongo connection attempt finished:', err.message)
+  })
 
 const app = express()
 
