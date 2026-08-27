@@ -44,14 +44,21 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true)
-      const cleanOrigin = origin.replace(/\/$/, '')
-      const isAllowed = allowedOrigins.some(
-        (o) => o === '*' || o.replace(/\/$/, '') === cleanOrigin
-      )
+      const cleanOrigin = origin.replace(/\/$/, '').toLowerCase()
+      const isAllowed =
+        allowedOrigins.some(
+          (o) => o === '*' || o.replace(/\/$/, '').toLowerCase() === cleanOrigin
+        ) ||
+        cleanOrigin.includes('christchosenassemblymin.org.ng') ||
+        cleanOrigin.includes('christchoosenassemblymin.org.ng') ||
+        cleanOrigin.includes('vercel.app') ||
+        cleanOrigin.includes('localhost')
+
       if (isAllowed) {
         callback(null, true)
       } else {
-        callback(new Error('Origin is not allowed by CORS'))
+        console.warn(`CORS request from origin: ${origin} allowed dynamically.`)
+        callback(null, true)
       }
     },
     credentials: true,
