@@ -51,8 +51,15 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }))
 app.use('/api/uploads', express.static(uploadsDir))
 app.get('/api/uploads/:id', (req, res, next) => {
   try {
+    const filePath = path.join(uploadsDir, req.params.id)
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      return res.sendFile(filePath)
+    }
+
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).end()
     const bucket = getUploadBucket()
+    if (!bucket) return res.status(404).end()
+
     const fileId = new mongoose.Types.ObjectId(req.params.id)
     bucket.find({ _id: fileId }).next().then((file) => {
       if (!file) return res.status(404).end()

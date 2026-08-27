@@ -1,6 +1,9 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import multer from 'multer'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
 import { deleteUploadByUrl, getUploadBucket } from '../db/contentPersistence.js'
@@ -11,6 +14,9 @@ import {
   getItemByType,
 } from '../services/contentService.js'
 import { publishToSocial } from '../services/socialPublisher.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const uploadsDir = path.join(__dirname, '../../uploads')
 
 const router = Router()
 const COLLECTIONS = Object.keys(contentRepositories)
@@ -44,16 +50,31 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
   }
   try {
     const bucket = getUploadBucket()
-    const fileId = bucket.openUploadStream(req.file.originalname, {
-      contentType: req.file.mimetype,
-    })
-    fileId.end(req.file.buffer)
-    fileId.on('finish', () => {
-      deleteUploadByUrl(req.body.previousUrl)
-        .then(() => res.json({ url: `${config.apiPublicUrl}/api/uploads/${fileId.id}` }))
-        .catch(next)
-    })
-    fileId.on('error', next)
+    if (bucket) {
+      const fileId = bucket.openUploadStream(req.file.originalname, {
+        contentType: req.file.mimetype,
+      })
+      fileId.end(req.file.buffer)
+      fileId.on('finish', () => {
+        deleteUploadByUrl(req.body.previousUrl)
+          .then(() => res.json({ url: `${config.apiPublicUrl}/api/uploads/${fileId.id}` }))
+          .catch(next)
+      })
+      fileId.on('error', next)
+      return
+    }
+
+    // Disk fallback when GridFS is not available
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true })
+    }
+    const ext = path.extname(req.file.originalname) || '.jpg'
+    const filename = `${Date.now()}-${uuidv4().slice(0, 8)}${ext}`
+    const targetPath = path.join(uploadsDir, filename)
+    fs.writeFileSync(targetPath, req.file.buffer)
+
+    await deleteUploadByUrl(req.body.previousUrl)
+    return res.json({ url: `${config.apiPublicUrl}/api/uploads/${filename}` })
   } catch (err) {
     next(err)
   }

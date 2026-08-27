@@ -1,7 +1,12 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
-import { ContentState } from '../db/contentPersistence.js'
+import {
+  ContentState,
+  readLocalContent,
+  writeLocalContent,
+  isMongoReady,
+} from '../db/contentPersistence.js'
 import { config } from '../config.js'
 
 const emptyContent = {
@@ -14,9 +19,10 @@ const emptyContent = {
 }
 
 let contentDocument = null
+let localDefaultAdminHash = bcrypt.hashSync(config.adminPassword, 12)
 
 function getDocument() {
-  if (!contentDocument) throw new Error('MongoDB content store is not initialized')
+  if (!contentDocument) throw new Error('Content store is not initialized')
   return contentDocument
 }
 
@@ -59,21 +65,37 @@ async function save() {
 }
 
 export async function initializeContentStore() {
-  if (!config.mongoUri) {
-    throw new Error('MONGODB_URI must be configured; this server no longer uses SQLite')
+  const localData = readLocalContent()
+
+  if (isMongoReady()) {
+    try {
+      const saved = await ContentState.findOne({ key: 'church-content' })
+      contentDocument = saved || new ContentState({ key: 'church-content', content: { ...emptyContent, ...localData } })
+      contentDocument.content = normalizeContent(contentDocument.content)
+      contentDocument.markModified('content')
+      await contentDocument.save()
+      writeLocalContent(contentDocument.content)
+
+      const admins = mongoose.connection.db.collection('admins')
+      const email = config.adminEmail.trim().toLowerCase()
+      const existingAdmin = await admins.findOne({ email }).catch(() => null)
+      if (!existingAdmin) {
+        await admins.insertOne({ id: uuidv4(), email, password_hash: localDefaultAdminHash, name: 'Church Admin', created_at: new Date() }).catch(() => {})
+      }
+      return
+    } catch (err) {
+      console.warn('Failed to query MongoDB in initializeContentStore, switching to local store:', err.message)
+    }
   }
-  const saved = await ContentState.findOne({ key: 'church-content' })
-  contentDocument = saved || new ContentState({ key: 'church-content', content: { ...emptyContent } })
-  contentDocument.content = normalizeContent(contentDocument.content)
-  contentDocument.markModified('content')
-  if (!saved) await save()
-  else await save()
-  const admins = mongoose.connection.db.collection('admins')
-  const email = config.adminEmail.trim().toLowerCase()
-  const existingAdmin = await admins.findOne({ email })
-  if (!existingAdmin) {
-    await admins.insertOne({ id: uuidv4(), email, password_hash: bcrypt.hashSync(config.adminPassword, 12), name: 'Church Admin', created_at: new Date() })
+
+  contentDocument = {
+    content: normalizeContent(localData),
+    markModified: () => {},
+    save: async function () {
+      writeLocalContent(this.content)
+    },
   }
+  writeLocalContent(contentDocument.content)
 }
 
 export async function getPublicContent() {
@@ -130,21 +152,60 @@ export async function deleteAboutPage() {
 }
 
 export async function findAdminByEmail(email) {
-  return mongoose.connection.db.collection('admins').findOne({ email: email.toLowerCase() })
+  const target = email.toLowerCase()
+  if (isMongoReady() && mongoose.connection.db) {
+    try {
+      const found = await mongoose.connection.db.collection('admins').findOne({ email: target })
+      if (found) return found
+    } catch (e) {}
+  }
+  if (target === config.adminEmail.trim().toLowerCase()) {
+    return {
+      id: 'local-admin-id',
+      email: config.adminEmail.trim().toLowerCase(),
+      password_hash: localDefaultAdminHash,
+      name: 'Church Admin',
+    }
+  }
+  return null
 }
 
 export async function findAdminById(id) {
-  return mongoose.connection.db.collection('admins').findOne({ id }, { projection: { password_hash: 0 } })
+  if (isMongoReady() && mongoose.connection.db) {
+    try {
+      const found = await mongoose.connection.db.collection('admins').findOne({ id }, { projection: { password_hash: 0 } })
+      if (found) return found
+    } catch (e) {}
+  }
+  return {
+    id: 'local-admin-id',
+    email: config.adminEmail.trim().toLowerCase(),
+    name: 'Church Admin',
+  }
 }
 
 export async function updateAdminPassword(id, passwordHash) {
-  await mongoose.connection.db.collection('admins').updateOne({ id }, { $set: { password_hash: passwordHash } })
+  localDefaultAdminHash = passwordHash
+  if (isMongoReady() && mongoose.connection.db) {
+    try {
+      await mongoose.connection.db.collection('admins').updateOne({ id }, { $set: { password_hash: passwordHash } })
+    } catch (e) {}
+  }
 }
 
 export async function logSocialPublish(entry) {
-  await mongoose.connection.db.collection('social_logs').insertOne({ ...entry, created_at: new Date() })
+  if (isMongoReady() && mongoose.connection.db) {
+    try {
+      await mongoose.connection.db.collection('social_logs').insertOne({ ...entry, created_at: new Date() })
+    } catch (e) {}
+  }
 }
 
 export async function getSocialLogs(limit = 50) {
-  return mongoose.connection.db.collection('social_logs').find().sort({ created_at: -1 }).limit(limit).toArray()
+  if (isMongoReady() && mongoose.connection.db) {
+    try {
+      return await mongoose.connection.db.collection('social_logs').find().sort({ created_at: -1 }).limit(limit).toArray()
+    } catch (e) {}
+  }
+  return []
 }
