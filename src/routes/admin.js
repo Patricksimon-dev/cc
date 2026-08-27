@@ -57,7 +57,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       fileId.end(req.file.buffer)
       fileId.on('finish', () => {
         deleteUploadByUrl(req.body.previousUrl)
-          .then(() => res.json({ url: `${config.apiPublicUrl}/api/uploads/${fileId.id}` }))
+          .then(() => res.json({ url: `/api/uploads/${fileId.id}` }))
           .catch(next)
       })
       fileId.on('error', next)
@@ -74,7 +74,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     fs.writeFileSync(targetPath, req.file.buffer)
 
     await deleteUploadByUrl(req.body.previousUrl)
-    return res.json({ url: `${config.apiPublicUrl}/api/uploads/${filename}` })
+    return res.json({ url: `/api/uploads/${filename}` })
   } catch (err) {
     next(err)
   }

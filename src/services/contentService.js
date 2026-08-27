@@ -61,7 +61,12 @@ function normalizeContent(content = {}) {
 }
 
 async function save() {
-  await contentDocument.save()
+  if (contentDocument?.save && typeof contentDocument.save === 'function') {
+    await contentDocument.save()
+  }
+  if (contentDocument?.content) {
+    writeLocalContent(contentDocument.content)
+  }
 }
 
 export async function initializeContentStore() {
@@ -69,11 +74,36 @@ export async function initializeContentStore() {
 
   if (isMongoReady()) {
     try {
-      const saved = await ContentState.findOne({ key: 'church-content' })
-      contentDocument = saved || new ContentState({ key: 'church-content', content: { ...emptyContent, ...localData } })
-      contentDocument.content = normalizeContent(contentDocument.content)
+      let saved = await ContentState.findOne({ key: 'church-content' })
+      if (!saved) {
+        saved = new ContentState({
+          key: 'church-content',
+          content: normalizeContent(localData),
+        })
+        await saved.save()
+      } else {
+        const mongoContent = normalizeContent(saved.content || {})
+        let modified = false
+        for (const type of ['announcements', 'sermons', 'activities', 'events', 'leadership']) {
+          if ((!mongoContent[type] || mongoContent[type].length === 0) && localData[type] && localData[type].length > 0) {
+            mongoContent[type] = localData[type]
+            modified = true
+          }
+        }
+        if (!mongoContent.about && localData.about) {
+          mongoContent.about = localData.about
+          modified = true
+        }
+
+        saved.content = mongoContent
+        if (modified) {
+          saved.markModified('content')
+          await saved.save()
+        }
+      }
+
+      contentDocument = saved
       contentDocument.markModified('content')
-      await contentDocument.save()
       writeLocalContent(contentDocument.content)
 
       const admins = mongoose.connection.db.collection('admins')
