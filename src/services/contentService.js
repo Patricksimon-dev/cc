@@ -1,249 +1,246 @@
-import mongoose from 'mongoose'
-import bcrypt from 'bcryptjs'
-import { v4 as uuidv4 } from 'uuid'
-import {
-  ContentState,
-  readLocalContent,
-  writeLocalContent,
-  isMongoReady,
-} from '../db/contentPersistence.js'
-import { config } from '../config.js'
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { getDb } from '../db/sqlitePersistence.js';
+import { config } from '../config.js';
 
-const emptyContent = {
-  announcements: [],
-  sermons: [],
-  activities: [],
-  events: [],
-  leadership: [],
-  about: null,
-}
+let localDefaultAdminHash = bcrypt.hashSync(config.adminPassword, 12);
 
-let contentDocument = null
-let localDefaultAdminHash = bcrypt.hashSync(config.adminPassword, 12)
+const TYPES = ['announcements', 'sermons', 'activities', 'events', 'leadership'];
 
-function getDocument() {
-  if (!contentDocument) throw new Error('Content store is not initialized')
-  return contentDocument
-}
-
-function publicContent(content) {
-  return {
-    announcements: [...(content.announcements || [])].sort((a, b) => Number(b.pinned) - Number(a.pinned) || String(b.date).localeCompare(String(a.date))),
-    sermons: [...(content.sermons || [])].sort((a, b) => String(b.date).localeCompare(String(a.date))),
-    activities: content.activities || [],
-    events: [...(content.events || [])].sort((a, b) => String(a.date).localeCompare(String(b.date))),
-    leadership: content.leadership || [],
-    about: content.about || null,
-  }
-}
-
-function normalizeContent(content = {}) {
-  const map = {
-    announcements: (item) => ({ ...item, pinned: Boolean(item.pinned) }),
-    sermons: (item) => ({ ...item, videoUrl: item.videoUrl ?? item.video_url ?? '', audioUrl: item.audioUrl ?? item.audio_url ?? '' }),
-    activities: (item) => ({ ...item }),
-    events: (item) => ({ ...item, imageUrl: item.imageUrl ?? item.image_url ?? '' }),
-    leadership: (item) => ({ ...item, imageUrl: item.imageUrl ?? item.image_url ?? '' }),
-  }
-  const normalized = { ...emptyContent, ...content }
-  for (const [type, mapper] of Object.entries(map)) {
-    normalized[type] = (normalized[type] || []).map(mapper)
-  }
-  if (normalized.about && normalized.about.welcome_title) {
-    normalized.about = {
-      welcomeTitle: normalized.about.welcomeTitle ?? normalized.about.welcome_title ?? '',
-      welcomeText: normalized.about.welcomeText ?? normalized.about.welcome_text ?? '',
-      mission: normalized.about.mission ?? '', vision: normalized.about.vision ?? '',
-      history: normalized.about.history ?? '', values: normalized.about.values ?? normalized.about.values_text ?? '',
-    }
-  }
-  return normalized
-}
-
-async function save() {
-  if (contentDocument?.save && typeof contentDocument.save === 'function') {
-    await contentDocument.save()
-  }
-  if (contentDocument?.content) {
-    writeLocalContent(contentDocument.content)
-  }
+function normalizeItem(type, item) {
+  if (type === 'announcements') return { ...item, pinned: Boolean(item.pinned) };
+  if (type === 'sermons') return { ...item, videoUrl: item.videoUrl ?? item.video_url ?? '', audioUrl: item.audioUrl ?? item.audio_url ?? '' };
+  if (type === 'events') return { ...item, imageUrl: item.imageUrl ?? item.image_url ?? '' };
+  if (type === 'leadership') return { ...item, imageUrl: item.imageUrl ?? item.image_url ?? '' };
+  return item;
 }
 
 export async function initializeContentStore() {
-  const localData = readLocalContent()
+  const db = getDb();
 
-  if (isMongoReady()) {
-    try {
-      let saved = await ContentState.findOne({ key: 'church-content' })
-      if (!saved) {
-        saved = new ContentState({
-          key: 'church-content',
-          content: normalizeContent(localData),
-        })
-        await saved.save()
-      } else {
-        const mongoContent = normalizeContent(saved.content || {})
-        let modified = false
-        if (!mongoContent.leadership || mongoContent.leadership.length === 0) {
-          mongoContent.leadership = [
-            {
-              id: 'fff60e59-0aa7-4415-8d08-6eaef176a05b',
-              name: 'Pastor Ekele Idoko',
-              role: 'Senior Pastor & General Overseer',
-              bio: 'Leading Christ Chosen Assembly Ministry with vision, faith, and dedication to God’s word and community service.',
-              imageUrl: '/go-pastor.jpg',
-            },
-          ]
-          modified = true
-        } else {
-          for (const item of mongoContent.leadership) {
-            if (item.name === 'Rev. Dr. Patrick Ogar') {
-              item.name = 'Pastor Ekele Idoko'
-              modified = true
-            }
-          }
-        }
-        saved.content = mongoContent
-        if (modified) {
-          saved.markModified('content')
-          await saved.save()
-        }
-      }
+  // Check if leadership collection has rows; if not, seed default Pastor Ekele Idoko profile
+  const countStmt = db.prepare(`SELECT COUNT(*) as count FROM collections WHERE type = 'leadership'`);
+  const { count } = countStmt.get();
 
-      contentDocument = saved
-      contentDocument.markModified('content')
-      writeLocalContent(contentDocument.content)
-
-      const admins = mongoose.connection.db.collection('admins')
-      const email = config.adminEmail.trim().toLowerCase()
-      const existingAdmin = await admins.findOne({ email }).catch(() => null)
-      if (!existingAdmin) {
-        await admins.insertOne({ id: uuidv4(), email, password_hash: localDefaultAdminHash, name: 'Church Admin', created_at: new Date() }).catch(() => {})
-      }
-      return
-    } catch (err) {
-      console.warn('Failed to query MongoDB in initializeContentStore, switching to local store:', err.message)
-    }
+  if (count === 0) {
+    const defaultPastor = {
+      id: 'fff60e59-0aa7-4415-8d08-6eaef176a05b',
+      name: 'Pastor Ekele Idoko',
+      role: 'Senior Pastor & General Overseer',
+      bio: 'Leading Christ Chosen Assembly Ministry with vision, faith, and dedication to God’s word and community service.',
+      imageUrl: '/go-pastor.jpg',
+    };
+    const insertStmt = db.prepare(`
+      INSERT INTO collections (id, type, content)
+      VALUES (?, 'leadership', ?)
+    `);
+    insertStmt.run(defaultPastor.id, JSON.stringify(defaultPastor));
   }
 
-  contentDocument = {
-    content: normalizeContent(localData),
-    markModified: () => {},
-    save: async function () {
-      writeLocalContent(this.content)
-    },
+  // Initialize admin user if missing
+  const adminEmail = config.adminEmail.trim().toLowerCase();
+  const adminStmt = db.prepare(`SELECT * FROM admins WHERE email = ?`);
+  const existingAdmin = adminStmt.get(adminEmail);
+  if (!existingAdmin) {
+    const insertAdmin = db.prepare(`
+      INSERT INTO admins (id, email, password_hash, name)
+      VALUES (?, ?, ?, ?)
+    `);
+    insertAdmin.run(uuidv4(), adminEmail, localDefaultAdminHash, 'Church Admin');
   }
-  writeLocalContent(contentDocument.content)
 }
 
 export async function getPublicContent() {
-  return publicContent(getDocument().content)
+  const db = getDb();
+  const result = {
+    announcements: [],
+    sermons: [],
+    activities: [],
+    events: [],
+    leadership: [],
+    about: null,
+  };
+
+  const stmt = db.prepare(`SELECT id, type, content FROM collections ORDER BY created_at DESC`);
+  const rows = stmt.all();
+
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.content);
+      const item = normalizeItem(row.type, { id: row.id, ...parsed });
+      if (result[row.type]) {
+        result[row.type].push(item);
+      }
+    } catch (e) {}
+  }
+
+  // Sort collections appropriately
+  result.announcements.sort((a, b) => Number(b.pinned) - Number(a.pinned) || String(b.date || '').localeCompare(String(a.date || '')));
+  result.sermons.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  result.events.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+  // Get About page
+  const aboutStmt = db.prepare(`SELECT * FROM about_page WHERE id = 'main'`);
+  const aboutRow = aboutStmt.get();
+  if (aboutRow) {
+    result.about = {
+      welcomeTitle: aboutRow.welcome_title || '',
+      welcomeText: aboutRow.welcome_text || '',
+      mission: aboutRow.mission || '',
+      vision: aboutRow.vision || '',
+      history: aboutRow.history || '',
+      values: aboutRow.values_text || '',
+    };
+  }
+
+  return result;
 }
 
 export async function getItemByType(type, id) {
-  return getDocument().content[type]?.find((item) => item.id === id) || null
+  const db = getDb();
+  const stmt = db.prepare(`SELECT content FROM collections WHERE type = ? AND id = ?`);
+  const row = stmt.get(type, id);
+  if (!row) return null;
+  try {
+    return { id, ...JSON.parse(row.content) };
+  } catch (e) {
+    return null;
+  }
 }
 
-export const contentRepositories = {}
-for (const type of ['announcements', 'sermons', 'activities', 'events', 'leadership']) {
+export const contentRepositories = {};
+
+for (const type of TYPES) {
   contentRepositories[type] = {
-    list: async () => publicContent(getDocument().content)[type],
+    list: async () => {
+      const all = await getPublicContent();
+      return all[type] || [];
+    },
     create: async (id, body) => {
-      const item = { id, ...body }
-      getDocument().content[type].unshift(item)
-      getDocument().markModified('content')
-      await save()
-      return item
+      const db = getDb();
+      const item = { id, ...body };
+      const stmt = db.prepare(`
+        INSERT INTO collections (id, type, content)
+        VALUES (?, ?, ?)
+      `);
+      stmt.run(id, type, JSON.stringify(item));
+      return item;
     },
     update: async (id, body) => {
-      const items = getDocument().content[type]
-      const index = items.findIndex((item) => item.id === id)
-      if (index < 0) return null
-      items[index] = { ...items[index], ...body, id }
-      getDocument().markModified('content')
-      await save()
-      return items[index]
+      const db = getDb();
+      const existing = await getItemByType(type, id);
+      if (!existing) return null;
+      const updated = { ...existing, ...body, id };
+      const stmt = db.prepare(`
+        UPDATE collections
+        SET content = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND type = ?
+      `);
+      stmt.run(JSON.stringify(updated), id, type);
+      return updated;
     },
     remove: async (id) => {
-      const items = getDocument().content[type]
-      getDocument().content[type] = items.filter((item) => item.id !== id)
-      getDocument().markModified('content')
-      await save()
+      const db = getDb();
+      const stmt = db.prepare(`DELETE FROM collections WHERE id = ? AND type = ?`);
+      stmt.run(id, type);
     },
-  }
+  };
 }
 
 export async function updateAboutPage(body) {
-  getDocument().content.about = {
-    welcomeTitle: body.welcomeTitle || '', welcomeText: body.welcomeText || '', mission: body.mission || '',
-    vision: body.vision || '', history: body.history || '', values: body.values || '',
-  }
-  getDocument().markModified('content')
-  await save()
-  return getDocument().content.about
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text, updated_at)
+    VALUES ('main', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      welcome_title = excluded.welcome_title,
+      welcome_text = excluded.welcome_text,
+      mission = excluded.mission,
+      vision = excluded.vision,
+      history = excluded.history,
+      values_text = excluded.values_text,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+  stmt.run(
+    body.welcomeTitle || '',
+    body.welcomeText || '',
+    body.mission || '',
+    body.vision || '',
+    body.history || '',
+    body.values || ''
+  );
+  return {
+    welcomeTitle: body.welcomeTitle || '',
+    welcomeText: body.welcomeText || '',
+    mission: body.mission || '',
+    vision: body.vision || '',
+    history: body.history || '',
+    values: body.values || '',
+  };
 }
 
 export async function deleteAboutPage() {
-  getDocument().content.about = null
-  getDocument().markModified('content')
-  await save()
+  const db = getDb();
+  const stmt = db.prepare(`DELETE FROM about_page WHERE id = 'main'`);
+  stmt.run();
 }
 
 export async function findAdminByEmail(email) {
-  const target = email.toLowerCase()
-  if (isMongoReady() && mongoose.connection.db) {
-    try {
-      const found = await mongoose.connection.db.collection('admins').findOne({ email: target })
-      if (found) return found
-    } catch (e) {}
-  }
+  const target = email.toLowerCase();
+  const db = getDb();
+  const stmt = db.prepare(`SELECT * FROM admins WHERE email = ?`);
+  const found = stmt.get(target);
+  if (found) return found;
+
   if (target === config.adminEmail.trim().toLowerCase()) {
     return {
       id: 'local-admin-id',
       email: config.adminEmail.trim().toLowerCase(),
       password_hash: localDefaultAdminHash,
       name: 'Church Admin',
-    }
+    };
   }
-  return null
+  return null;
 }
 
 export async function findAdminById(id) {
-  if (isMongoReady() && mongoose.connection.db) {
-    try {
-      const found = await mongoose.connection.db.collection('admins').findOne({ id }, { projection: { password_hash: 0 } })
-      if (found) return found
-    } catch (e) {}
-  }
+  const db = getDb();
+  const stmt = db.prepare(`SELECT id, email, name FROM admins WHERE id = ?`);
+  const found = stmt.get(id);
+  if (found) return found;
+
   return {
     id: 'local-admin-id',
     email: config.adminEmail.trim().toLowerCase(),
     name: 'Church Admin',
-  }
+  };
 }
 
 export async function updateAdminPassword(id, passwordHash) {
-  localDefaultAdminHash = passwordHash
-  if (isMongoReady() && mongoose.connection.db) {
-    try {
-      await mongoose.connection.db.collection('admins').updateOne({ id }, { $set: { password_hash: passwordHash } })
-    } catch (e) {}
-  }
+  localDefaultAdminHash = passwordHash;
+  const db = getDb();
+  const stmt = db.prepare(`UPDATE admins SET password_hash = ? WHERE id = ?`);
+  stmt.run(passwordHash, id);
 }
 
 export async function logSocialPublish(entry) {
-  if (isMongoReady() && mongoose.connection.db) {
-    try {
-      await mongoose.connection.db.collection('social_logs').insertOne({ ...entry, created_at: new Date() })
-    } catch (e) {}
-  }
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO social_logs (id, platform, content_id, content_type, status, response)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    uuidv4(),
+    entry.platform || '',
+    entry.contentId || '',
+    entry.contentType || '',
+    entry.status || '',
+    JSON.stringify(entry.response || {})
+  );
 }
 
 export async function getSocialLogs(limit = 50) {
-  if (isMongoReady() && mongoose.connection.db) {
-    try {
-      return await mongoose.connection.db.collection('social_logs').find().sort({ created_at: -1 }).limit(limit).toArray()
-    } catch (e) {}
-  }
-  return []
+  const db = getDb();
+  const stmt = db.prepare(`SELECT * FROM social_logs ORDER BY created_at DESC LIMIT ?`);
+  return stmt.all(limit);
 }

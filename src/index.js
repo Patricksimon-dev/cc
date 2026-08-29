@@ -12,20 +12,11 @@ import socialRoutes from './routes/social.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { getPublicContent, initializeContentStore } from './services/contentService.js'
-import { getUploadBucket, initializeContentPersistence } from './db/contentPersistence.js'
-import mongoose from 'mongoose'
+import { getUpload } from './db/sqlitePersistence.js'
 
-// Connect to MongoDB and initialize content store before listening
-const connected = await initializeContentPersistence().catch((err) => {
-  console.warn('Mongo connection attempt error:', err.message)
-  return false
-})
+// Initialize SQLite content store
 await initializeContentStore()
-if (connected) {
-  console.info('Server initialized with MongoDB content store.')
-} else {
-  console.info('Server initialized with local fallback content store.')
-}
+console.info('Server initialized with SQLite content store.')
 
 const app = express()
 
@@ -67,21 +58,20 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }))
 app.use('/api/uploads', express.static(uploadsDir))
 app.get('/api/uploads/:id', (req, res, next) => {
   try {
-    const filePath = path.join(uploadsDir, req.params.id)
+    const fileId = req.params.id
+    const record = getUpload(fileId)
+    if (record && record.data_base64) {
+      const buffer = Buffer.from(record.data_base64, 'base64')
+      res.type(record.mime_type || 'image/jpeg')
+      return res.send(buffer)
+    }
+
+    const filePath = path.join(uploadsDir, fileId)
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       return res.sendFile(filePath)
     }
 
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).end()
-    const bucket = getUploadBucket()
-    if (!bucket) return res.status(404).end()
-
-    const fileId = new mongoose.Types.ObjectId(req.params.id)
-    bucket.find({ _id: fileId }).next().then((file) => {
-      if (!file) return res.status(404).end()
-      res.type(file.contentType || 'application/octet-stream')
-      bucket.openDownloadStream(fileId).on('error', next).pipe(res)
-    }).catch(next)
+    return res.status(404).end()
   } catch (err) {
     next(err)
   }

@@ -6,14 +6,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
-import { deleteUploadByUrl, getUploadBucket } from '../db/contentPersistence.js'
-import {
-  contentRepositories,
-  updateAboutPage,
-  deleteAboutPage,
-  getItemByType,
-} from '../services/contentService.js'
-import { publishToSocial } from '../services/socialPublisher.js'
+import { deleteUpload, saveUpload } from '../db/sqlitePersistence.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(__dirname, '../../uploads')
@@ -49,32 +42,15 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     return res.status(400).json({ error: 'No file uploaded' })
   }
   try {
-    const bucket = getUploadBucket()
-    if (bucket) {
-      const fileId = bucket.openUploadStream(req.file.originalname, {
-        contentType: req.file.mimetype,
-      })
-      fileId.end(req.file.buffer)
-      fileId.on('finish', () => {
-        deleteUploadByUrl(req.body.previousUrl)
-          .then(() => res.json({ url: `/api/uploads/${fileId.id}` }))
-          .catch(next)
-      })
-      fileId.on('error', next)
-      return
+    const fileId = uuidv4()
+    const base64Data = req.file.buffer.toString('base64')
+    saveUpload(fileId, req.file.originalname, req.file.mimetype, base64Data)
+
+    if (req.body.previousUrl) {
+      deleteUpload(req.body.previousUrl)
     }
 
-    // Disk fallback when GridFS is not available
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true })
-    }
-    const ext = path.extname(req.file.originalname) || '.jpg'
-    const filename = `${Date.now()}-${uuidv4().slice(0, 8)}${ext}`
-    const targetPath = path.join(uploadsDir, filename)
-    fs.writeFileSync(targetPath, req.file.buffer)
-
-    await deleteUploadByUrl(req.body.previousUrl)
-    return res.json({ url: `/api/uploads/${filename}` })
+    return res.json({ url: `/api/uploads/${fileId}` })
   } catch (err) {
     next(err)
   }
@@ -147,7 +123,7 @@ for (const type of COLLECTIONS) {
     if (!existing) return res.status(404).json({ error: 'Not found' })
     try {
       if (type === 'leadership') {
-        await deleteUploadByUrl(existing.imageUrl)
+        deleteUpload(existing.imageUrl)
       }
       await repo.remove(req.params.id)
       res.status(204).send()

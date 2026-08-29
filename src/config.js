@@ -78,6 +78,4 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-if (config.mongoUri) {
-  console.info('MongoDB content persistence is enabled.');
-}
+console.info('SQLite content persistence is enabled.');
