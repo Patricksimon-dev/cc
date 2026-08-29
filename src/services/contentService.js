@@ -83,23 +83,30 @@ export async function initializeContentStore() {
         await saved.save()
       } else {
         const mongoContent = normalizeContent(saved.content || {})
+        let modified = false
         if (!mongoContent.leadership || mongoContent.leadership.length === 0) {
-          mongoContent.leadership = (localData.leadership && localData.leadership.length > 0)
-            ? localData.leadership
-            : [
-                {
-                  id: 'fff60e59-0aa7-4415-8d08-6eaef176a05b',
-                  name: 'Rev. Dr. Patrick Ogar',
-                  role: 'Senior Pastor & General Overseer',
-                  bio: 'Leading Christ Chosen Assembly Ministry with vision, faith, and dedication to God’s word and community service.',
-                  imageUrl: '/go-pastor.jpg',
-                },
-              ]
-          saved.content = mongoContent
+          mongoContent.leadership = [
+            {
+              id: 'fff60e59-0aa7-4415-8d08-6eaef176a05b',
+              name: 'Pastor Ekele Idoko',
+              role: 'Senior Pastor & General Overseer',
+              bio: 'Leading Christ Chosen Assembly Ministry with vision, faith, and dedication to God’s word and community service.',
+              imageUrl: '/go-pastor.jpg',
+            },
+          ]
+          modified = true
+        } else {
+          for (const item of mongoContent.leadership) {
+            if (item.name === 'Rev. Dr. Patrick Ogar') {
+              item.name = 'Pastor Ekele Idoko'
+              modified = true
+            }
+          }
+        }
+        saved.content = mongoContent
+        if (modified) {
           saved.markModified('content')
           await saved.save()
-        } else {
-          saved.content = mongoContent
         }
       }
 
