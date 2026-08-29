@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import mongoose from 'mongoose'
+import { getDb } from '../db/sqlitePersistence.js'
 import { mailTransporter, config } from '../config.js'
 
 const router = Router()
@@ -14,14 +14,12 @@ router.post('/contact', async (req, res, next) => {
 
   try {
     const id = uuidv4()
-    await mongoose.connection.db.collection('contact_messages').insertOne({
-      id,
-      name: name.trim(),
-      email: email.trim(),
-      subject: subject.trim(),
-      message: message.trim(),
-      created_at: new Date(),
-    })
+    const db = getDb()
+    const stmt = db.prepare(`
+      INSERT INTO contact_messages (id, name, email, subject, message)
+      VALUES (?, ?, ?, ?, ?)
+    `)
+    stmt.run(id, name.trim(), email.trim(), subject.trim(), message.trim())
 
     const isEmailConfigured =
       config.emailUser &&
