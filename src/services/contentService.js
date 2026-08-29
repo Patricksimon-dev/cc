@@ -82,24 +82,7 @@ export async function initializeContentStore() {
         })
         await saved.save()
       } else {
-        const mongoContent = normalizeContent(saved.content || {})
-        let modified = false
-        for (const type of ['announcements', 'sermons', 'activities', 'events', 'leadership']) {
-          if ((!mongoContent[type] || mongoContent[type].length === 0) && localData[type] && localData[type].length > 0) {
-            mongoContent[type] = localData[type]
-            modified = true
-          }
-        }
-        if (!mongoContent.about && localData.about) {
-          mongoContent.about = localData.about
-          modified = true
-        }
-
-        saved.content = mongoContent
-        if (modified) {
-          saved.markModified('content')
-          await saved.save()
-        }
+        saved.content = normalizeContent(saved.content || {})
       }
 
       contentDocument = saved
