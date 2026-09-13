@@ -15,10 +15,17 @@ router.post('/login', async (req, res, next) => {
     const cleanInput = String(email).trim().toLowerCase()
     const rawPassword = String(password).trim()
 
-    // 1. Try finding by exact email or username
-    let admin = await findAdminByEmail(cleanInput)
-    if (!admin && !cleanInput.includes('@')) {
-      admin = await findAdminByEmail(`${cleanInput}.ccam.com`)
+    const candidates = [cleanInput]
+    if (cleanInput.includes('@')) {
+      candidates.push(cleanInput.split('@')[0])
+    } else {
+      candidates.push(`${cleanInput}.ccam.com`, `${cleanInput}@gracechurch.org`, 'admin@gracechurch.org')
+    }
+
+    let admin = null
+    for (const candidate of candidates) {
+      admin = await findAdminByEmail(candidate)
+      if (admin) break
     }
 
     if (admin && bcrypt.compareSync(rawPassword, admin.password_hash)) {

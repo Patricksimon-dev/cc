@@ -7,6 +7,14 @@ import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
 import { deleteUpload, saveUpload } from '../db/sqlitePersistence.js'
+import {
+  contentRepositories,
+  getItemByType,
+  updateAboutPage,
+  deleteAboutPage,
+  normalizeLeadershipItem,
+} from '../services/contentService.js'
+import { publishToSocial } from '../services/socialPublisher.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(__dirname, '../../uploads')
@@ -88,8 +96,9 @@ for (const type of COLLECTIONS) {
   router.post(`/${type}`, async (req, res, next) => {
     try {
       const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
+      const payload = type === 'leadership' ? normalizeLeadershipItem(rest) : rest
       const id = uuidv4()
-      const item = await repo.create(id, rest)
+      const item = await repo.create(id, payload)
       const socialResults = await maybeShare(type, item, {
         shareToSocial,
         platforms,
@@ -106,7 +115,8 @@ for (const type of COLLECTIONS) {
       const existing = await getItemByType(type, req.params.id)
       if (!existing) return res.status(404).json({ error: 'Not found' })
       const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
-      const item = await repo.update(req.params.id, rest)
+      const payload = type === 'leadership' ? normalizeLeadershipItem({ ...existing, ...rest }) : rest
+      const item = await repo.update(req.params.id, payload)
       const socialResults = await maybeShare(type, item, {
         shareToSocial,
         platforms,
