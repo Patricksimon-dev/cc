@@ -12,7 +12,7 @@ try {
     bcrypt.compareSync('admin123', admin.password_hash) &&
     content.leadership.length === 1 &&
     leader &&
-    leader.name === 'Pastor Ekele Idoko' &&
+    leader.name === 'Pastor : Ekele Idoko Mark . The G . O of the CCAM' &&
     leader.imageUrl === '/go-pastor.jpg'
   );
 

@@ -8,7 +8,7 @@ let localDefaultAdminHash = bcrypt.hashSync(config.adminPassword, 12);
 const DEFAULT_LEADERSHIP_ID = 'pastor-ekele-idoko';
 const DEFAULT_LEADERSHIP_ITEM = Object.freeze({
   id: DEFAULT_LEADERSHIP_ID,
-  name: 'Pastor Ekele Idoko',
+  name: 'Pastor : Ekele Idoko Mark . The G . O of the CCAM',
   role: 'Senior Pastor & General Overseer',
   bio: 'Leading Christ Chosen Assembly Ministry with vision, faith, and dedication to God’s word and community service.',
   imageUrl: '/go-pastor.jpg',
@@ -25,7 +25,7 @@ export function normalizeLeadershipItem(item = {}) {
     ...DEFAULT_LEADERSHIP_ITEM,
     ...item,
     id: DEFAULT_LEADERSHIP_ID,
-    name: 'Pastor Ekele Idoko',
+    name: 'Pastor : Ekele Idoko Mark . The G . O of the CCAM',
     role: 'Senior Pastor & General Overseer',
     imageUrl: item.imageUrl ?? item.image_url ?? DEFAULT_LEADERSHIP_ITEM.imageUrl,
   };
