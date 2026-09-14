@@ -1,4 +1,7 @@
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/sqlitePersistence.js';
 import { config } from '../config.js';
@@ -25,8 +28,8 @@ export function normalizeLeadershipItem(item = {}) {
     ...DEFAULT_LEADERSHIP_ITEM,
     ...item,
     id: DEFAULT_LEADERSHIP_ID,
-    name: 'Pastor : Ekele Idoko Mark . The G . O of the CCAM',
-    role: 'Senior Pastor & General Overseer',
+    name: item.name ?? DEFAULT_LEADERSHIP_ITEM.name,
+    role: item.role ?? DEFAULT_LEADERSHIP_ITEM.role,
     imageUrl: item.imageUrl ?? item.image_url ?? DEFAULT_LEADERSHIP_ITEM.imageUrl,
   };
 }
@@ -39,19 +42,73 @@ function normalizeItem(type, item) {
   return item;
 }
 
+function readDefaultContentSeed() {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const defaultContentPath = path.resolve(__dirname, '../../data/content.json');
+
+  if (!fs.existsSync(defaultContentPath)) return null;
+
+  try {
+    const raw = fs.readFileSync(defaultContentPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function initializeContentStore() {
   const db = getDb();
 
+  const existingCollectionRows = db.prepare(`SELECT type, COUNT(*) AS count FROM collections GROUP BY type`).all();
+  const hasAnyCollectionContent = TYPES.some((type) => (existingCollectionRows.find((row) => row.type === type)?.count ?? 0) > 0);
+  const aboutRecordExists = Boolean(db.prepare(`SELECT 1 FROM about_page WHERE id = 'main'`).get());
+
+  if (config.seedDefaultContent && !hasAnyCollectionContent && !aboutRecordExists) {
+    const defaultContent = readDefaultContentSeed();
+    if (defaultContent) {
+      for (const type of TYPES) {
+        const items = Array.isArray(defaultContent[type]) ? defaultContent[type] : [];
+        for (const item of items) {
+          if (!item || typeof item !== 'object' || !item.id) continue;
+          const payload = type === 'leadership' ? normalizeLeadershipItem(item) : item;
+          const recordId = type === 'leadership' ? DEFAULT_LEADERSHIP_ID : item.id;
+          db.prepare(`
+            INSERT INTO collections (id, type, content)
+            VALUES (?, ?, ?)
+            ON CONFLICT(id) DO NOTHING
+          `).run(recordId, type, JSON.stringify(payload));
+        }
+      }
+
+      if (defaultContent.about && typeof defaultContent.about === 'object') {
+        db.prepare(`
+          INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text, updated_at)
+          VALUES ('main', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(id) DO NOTHING
+        `).run(
+          defaultContent.about.welcomeTitle || '',
+          defaultContent.about.welcomeText || '',
+          defaultContent.about.mission || '',
+          defaultContent.about.vision || '',
+          defaultContent.about.history || '',
+          defaultContent.about.values || ''
+        );
+      }
+    }
+  }
+
+  // Only seed a default leadership item when none exist. Do not delete or
+  // overwrite existing leadership entries so admin edits persist.
   const leadershipRows = db.prepare(`SELECT id, content FROM collections WHERE type = 'leadership'`).all();
-  const keepDefaultLeadership = JSON.stringify(normalizeLeadershipItem());
-
-  db.prepare(`DELETE FROM collections WHERE type = 'leadership' AND id != ?`).run(DEFAULT_LEADERSHIP_ID);
-
-  const defaultLeadershipExists = db.prepare(`SELECT id FROM collections WHERE type = 'leadership' AND id = ?`).get(DEFAULT_LEADERSHIP_ID);
-  if (defaultLeadershipExists) {
-    db.prepare(`UPDATE collections SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND type = 'leadership'`).run(keepDefaultLeadership, DEFAULT_LEADERSHIP_ID);
-  } else {
-    db.prepare(`INSERT INTO collections (id, type, content) VALUES (?, 'leadership', ?)`).run(DEFAULT_LEADERSHIP_ID, keepDefaultLeadership);
+  if (!leadershipRows || leadershipRows.length === 0) {
+    const keepDefaultLeadership = JSON.stringify(normalizeLeadershipItem());
+    const defaultLeadershipExists = db.prepare(`SELECT id FROM collections WHERE type = 'leadership' AND id = ?`).get(DEFAULT_LEADERSHIP_ID);
+    if (defaultLeadershipExists) {
+      db.prepare(`UPDATE collections SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND type = 'leadership'`).run(keepDefaultLeadership, DEFAULT_LEADERSHIP_ID);
+    } else {
+      db.prepare(`INSERT INTO collections (id, type, content) VALUES (?, 'leadership', ?)`).run(DEFAULT_LEADERSHIP_ID, keepDefaultLeadership);
+    }
   }
 
   const adminEmail = config.adminEmail.trim().toLowerCase();
@@ -171,9 +228,10 @@ for (const type of TYPES) {
     remove: async (id) => {
       const db = getDb();
       if (type === 'leadership') {
-        const defaultItem = normalizeLeadershipItem();
-        const stmt = db.prepare(`UPDATE collections SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND type = ?`);
-        stmt.run(JSON.stringify(defaultItem), DEFAULT_LEADERSHIP_ID, type);
+        // When removing a leadership item, delete the record instead of
+        // overwriting it with the default so admin changes are not lost.
+        const stmt = db.prepare(`DELETE FROM collections WHERE id = ? AND type = ?`);
+        stmt.run(id, type);
         return;
       }
       const stmt = db.prepare(`DELETE FROM collections WHERE id = ? AND type = ?`);
