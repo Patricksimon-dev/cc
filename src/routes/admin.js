@@ -27,9 +27,14 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 })
 
-function stripMeta(body) {
+function stripMeta(body = {}) {
   const { shareToSocial, platforms, customMessage, ...rest } = body
-  return { rest, shareToSocial, platforms, customMessage }
+  return {
+    ...rest,
+    shareToSocial: Boolean(shareToSocial),
+    platforms: Array.isArray(platforms) ? platforms : [],
+    customMessage: customMessage ?? '',
+  }
 }
 
 async function maybeShare(contentType, item, meta) {
@@ -95,7 +100,7 @@ for (const type of COLLECTIONS) {
 
   router.post(`/${type}`, async (req, res, next) => {
     try {
-      const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
+      const { shareToSocial, platforms, customMessage, ...rest } = stripMeta(req.body)
       const payload = type === 'leadership' ? normalizeLeadershipItem(rest) : rest
       const id = uuidv4()
       const item = await repo.create(id, payload)
@@ -114,7 +119,7 @@ for (const type of COLLECTIONS) {
     try {
       const existing = await getItemByType(type, req.params.id)
       if (!existing) return res.status(404).json({ error: 'Not found' })
-      const { rest, shareToSocial, platforms, customMessage } = stripMeta(req.body)
+      const { shareToSocial, platforms, customMessage, ...rest } = stripMeta(req.body)
       const payload = type === 'leadership' ? normalizeLeadershipItem({ ...existing, ...rest }) : rest
       const item = await repo.update(req.params.id, payload)
       const socialResults = await maybeShare(type, item, {
