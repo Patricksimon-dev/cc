@@ -230,12 +230,12 @@ for (const type of TYPES) {
       if (type === 'leadership') {
         // When removing a leadership item, delete the record instead of
         // overwriting it with the default so admin changes are not lost.
-        const stmt = db.prepare(`DELETE FROM collections WHERE id = ? AND type = ?`);
-        stmt.run(id, type);
+        const stmt = db.prepare(`DELETE FROM collections WHERE type = ? AND id = ?`);
+        stmt.run(type, id);
         return;
       }
-      const stmt = db.prepare(`DELETE FROM collections WHERE id = ? AND type = ?`);
-      stmt.run(id, type);
+      const stmt = db.prepare(`DELETE FROM collections WHERE type = ? AND id = ?`);
+      stmt.run(type, id);
     },
   };
 }
