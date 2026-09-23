@@ -12,17 +12,46 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = path.join(dataDir, 'church.db');
 const db = new Database(dbPath);
 
+function migrateCollectionsTable() {
+  const schema = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'collections'").get();
+  const tableSql = schema?.sql ?? '';
+  const usesCompositePrimaryKey = /PRIMARY\s+KEY\s*\(\s*type\s*,\s*id\s*\)/i.test(tableSql);
+
+  if (usesCompositePrimaryKey) {
+    return;
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS collections_migration (
+      id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (type, id)
+    );
+
+    INSERT OR IGNORE INTO collections_migration (id, type, content, created_at, updated_at)
+    SELECT id, type, content, created_at, updated_at
+    FROM collections;
+
+    DROP TABLE collections;
+    ALTER TABLE collections_migration RENAME TO collections;
+  `);
+}
+
 // Enable WAL mode for concurrency & safety
 db.pragma('journal_mode = WAL');
 
 // Initialize database schema
 db.exec(`
   CREATE TABLE IF NOT EXISTS collections (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     type TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (type, id)
   );
 
   CREATE TABLE IF NOT EXISTS about_page (
@@ -71,6 +100,8 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+migrateCollectionsTable();
 
 export function getDb() {
   return db;

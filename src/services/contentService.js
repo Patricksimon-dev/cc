@@ -76,7 +76,7 @@ export async function initializeContentStore() {
           db.prepare(`
             INSERT INTO collections (id, type, content)
             VALUES (?, ?, ?)
-            ON CONFLICT(id) DO NOTHING
+            ON CONFLICT(type, id) DO NOTHING
           `).run(recordId, type, JSON.stringify(payload));
         }
       }
@@ -202,7 +202,7 @@ for (const type of TYPES) {
       const stmt = db.prepare(`
         INSERT INTO collections (id, type, content)
         VALUES (?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
+        ON CONFLICT(type, id) DO UPDATE SET
           content = excluded.content,
           updated_at = CURRENT_TIMESTAMP
       `);
@@ -220,9 +220,9 @@ for (const type of TYPES) {
       const stmt = db.prepare(`
         UPDATE collections
         SET content = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND type = ?
+        WHERE type = ? AND id = ?
       `);
-      stmt.run(JSON.stringify(updated), recordId, type);
+      stmt.run(JSON.stringify(updated), type, recordId);
       return updated;
     },
     remove: async (id) => {
