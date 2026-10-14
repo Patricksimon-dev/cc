@@ -78,4 +78,4 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-console.info('SQLite content persistence is enabled.');
+console.info('Postgres content persistence is enabled when DATABASE_URL is set.');

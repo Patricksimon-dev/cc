@@ -1,134 +1,14 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+// For Neon/Postgres-only setup we forward sqlitePersistence exports to
+// `postgresPersistence.js`. This keeps existing import paths intact while
+// moving all persistence to Postgres.
+import {
+  getDb as pgGetDb,
+  saveUpload as pgSaveUpload,
+  getUpload as pgGetUpload,
+  deleteUpload as pgDeleteUpload,
+} from './postgresPersistence.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, '../../data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-const dbPath = path.join(dataDir, 'church.db');
-const db = new Database(dbPath);
-
-function migrateCollectionsTable() {
-  const schema = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'collections'").get();
-  const tableSql = schema?.sql ?? '';
-  const usesCompositePrimaryKey = /PRIMARY\s+KEY\s*\(\s*type\s*,\s*id\s*\)/i.test(tableSql);
-
-  if (usesCompositePrimaryKey) {
-    return;
-  }
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS collections_migration (
-      id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (type, id)
-    );
-
-    INSERT OR IGNORE INTO collections_migration (id, type, content, created_at, updated_at)
-    SELECT id, type, content, created_at, updated_at
-    FROM collections;
-
-    DROP TABLE collections;
-    ALTER TABLE collections_migration RENAME TO collections;
-  `);
-}
-
-// Enable WAL mode for concurrency & safety
-db.pragma('journal_mode = WAL');
-
-// Initialize database schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS collections (
-    id TEXT NOT NULL,
-    type TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (type, id)
-  );
-
-  CREATE TABLE IF NOT EXISTS about_page (
-    id TEXT PRIMARY KEY DEFAULT 'main',
-    welcome_title TEXT,
-    welcome_text TEXT,
-    mission TEXT,
-    vision TEXT,
-    history TEXT,
-    values_text TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS uploads (
-    id TEXT PRIMARY KEY,
-    filename TEXT,
-    mime_type TEXT,
-    data_base64 TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS admins (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    name TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS social_logs (
-    id TEXT PRIMARY KEY,
-    platform TEXT,
-    content_id TEXT,
-    content_type TEXT,
-    status TEXT,
-    response TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS contact_messages (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    message TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-
-migrateCollectionsTable();
-
-export function getDb() {
-  return db;
-}
-
-// Upload Operations
-export function saveUpload(id, filename, mimeType, base64Data) {
-  const stmt = db.prepare(`
-    INSERT INTO uploads (id, filename, mime_type, data_base64)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      filename = excluded.filename,
-      mime_type = excluded.mime_type,
-      data_base64 = excluded.data_base64
-  `);
-  stmt.run(id, filename, mimeType, base64Data);
-}
-
-export function getUpload(id) {
-  const stmt = db.prepare(`SELECT * FROM uploads WHERE id = ?`);
-  return stmt.get(id);
-}
-
-export function deleteUpload(id) {
-  if (!id) return;
-  const filename = id.split('/').pop();
-  if (!filename) return;
-  const stmt = db.prepare(`DELETE FROM uploads WHERE id = ?`);
-  stmt.run(filename);
-}
+export const getDb = pgGetDb;
+export const saveUpload = pgSaveUpload;
+export const getUpload = pgGetUpload;
+export const deleteUpload = pgDeleteUpload;

@@ -12,7 +12,16 @@ import socialRoutes from './routes/social.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { getPublicContent, initializeContentStore } from './services/contentService.js'
-import { getUpload } from './db/sqlitePersistence.js'
+import { getUpload as sqliteGetUpload } from './db/sqlitePersistence.js'
+let getUploadFn = sqliteGetUpload
+try {
+  if (process.env.DATABASE_URL) {
+    const pg = await import('./db/postgresUploads.js')
+    getUploadFn = pg.getUpload
+  }
+} catch (e) {
+  // fallback to sqlite getUpload
+}
 
 // Initialize SQLite content store
 await initializeContentStore()
@@ -56,13 +65,14 @@ app.use(
 app.use(express.json({ limit: '100mb' }))
 app.use(express.urlencoded({ limit: '100mb', extended: true }))
 app.use('/api/uploads', express.static(uploadsDir))
-app.get('/api/uploads/:id', (req, res, next) => {
+app.get('/api/uploads/:id', async (req, res, next) => {
   try {
     const fileId = req.params.id
-    const record = getUpload(fileId)
-    if (record && record.data_base64) {
-      const buffer = Buffer.from(record.data_base64, 'base64')
-      res.type(record.mime_type || 'image/jpeg')
+    const record = await getUploadFn(fileId)
+    if (record && (record.data_base64 || record.dataBase64)) {
+      const b64 = record.data_base64 || record.dataBase64
+      const buffer = Buffer.from(b64, 'base64')
+      res.type(record.mime_type || record.mimeType || 'image/jpeg')
       return res.send(buffer)
     }
 

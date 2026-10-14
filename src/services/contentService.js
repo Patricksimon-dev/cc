@@ -60,9 +60,9 @@ function readDefaultContentSeed() {
 export async function initializeContentStore() {
   const db = getDb();
 
-  const existingCollectionRows = db.prepare(`SELECT type, COUNT(*) AS count FROM collections GROUP BY type`).all();
+  const existingCollectionRows = await db.all(`SELECT type, COUNT(*) AS count FROM collections GROUP BY type`);
   const hasAnyCollectionContent = TYPES.some((type) => (existingCollectionRows.find((row) => row.type === type)?.count ?? 0) > 0);
-  const aboutRecordExists = Boolean(db.prepare(`SELECT 1 FROM about_page WHERE id = 'main'`).get());
+  const aboutRecordExists = Boolean(await db.get(`SELECT 1 FROM about_page WHERE id = 'main'`));
 
   if (config.seedDefaultContent && !hasAnyCollectionContent && !aboutRecordExists) {
     const defaultContent = readDefaultContentSeed();
@@ -73,26 +73,28 @@ export async function initializeContentStore() {
           if (!item || typeof item !== 'object' || !item.id) continue;
           const payload = type === 'leadership' ? normalizeLeadershipItem(item) : item;
           const recordId = type === 'leadership' ? DEFAULT_LEADERSHIP_ID : item.id;
-          db.prepare(`
-            INSERT INTO collections (id, type, content)
-            VALUES (?, ?, ?)
-            ON CONFLICT(type, id) DO NOTHING
-          `).run(recordId, type, JSON.stringify(payload));
+          await db.run(
+            `INSERT INTO collections (id, type, content)
+            VALUES ($1, $2, $3)
+            ON CONFLICT(type, id) DO NOTHING`,
+            [recordId, type, JSON.stringify(payload)]
+          );
         }
       }
 
       if (defaultContent.about && typeof defaultContent.about === 'object') {
-        db.prepare(`
-          INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text, updated_at)
-          VALUES ('main', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-          ON CONFLICT(id) DO NOTHING
-        `).run(
-          defaultContent.about.welcomeTitle || '',
-          defaultContent.about.welcomeText || '',
-          defaultContent.about.mission || '',
-          defaultContent.about.vision || '',
-          defaultContent.about.history || '',
-          defaultContent.about.values || ''
+        await db.run(
+          `INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text, updated_at)
+          VALUES ('main', $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          ON CONFLICT(id) DO NOTHING`,
+          [
+            defaultContent.about.welcomeTitle || '',
+            defaultContent.about.welcomeText || '',
+            defaultContent.about.mission || '',
+            defaultContent.about.vision || '',
+            defaultContent.about.history || '',
+            defaultContent.about.values || '',
+          ]
         );
       }
     }
@@ -100,26 +102,25 @@ export async function initializeContentStore() {
 
   // Only seed a default leadership item when none exist. Do not delete or
   // overwrite existing leadership entries so admin edits persist.
-  const leadershipRows = db.prepare(`SELECT id, content FROM collections WHERE type = 'leadership'`).all();
+  const leadershipRows = await db.all(`SELECT id, content FROM collections WHERE type = 'leadership'`);
   if (!leadershipRows || leadershipRows.length === 0) {
     const keepDefaultLeadership = JSON.stringify(normalizeLeadershipItem());
-    const defaultLeadershipExists = db.prepare(`SELECT id FROM collections WHERE type = 'leadership' AND id = ?`).get(DEFAULT_LEADERSHIP_ID);
+    const defaultLeadershipExists = await db.get(`SELECT id FROM collections WHERE type = 'leadership' AND id = $1`, [DEFAULT_LEADERSHIP_ID]);
     if (defaultLeadershipExists) {
-      db.prepare(`UPDATE collections SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND type = 'leadership'`).run(keepDefaultLeadership, DEFAULT_LEADERSHIP_ID);
+      await db.run(`UPDATE collections SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND type = 'leadership'`, [keepDefaultLeadership, DEFAULT_LEADERSHIP_ID]);
     } else {
-      db.prepare(`INSERT INTO collections (id, type, content) VALUES (?, 'leadership', ?)`).run(DEFAULT_LEADERSHIP_ID, keepDefaultLeadership);
+      await db.run(`INSERT INTO collections (id, type, content) VALUES ($1, 'leadership', $2)`, [DEFAULT_LEADERSHIP_ID, keepDefaultLeadership]);
     }
   }
 
   const adminEmail = config.adminEmail.trim().toLowerCase();
-  const adminRows = db.prepare(`SELECT * FROM admins`).all();
+  const adminRows = await db.all(`SELECT * FROM admins`);
   const existingAdmin = adminRows.find((row) => row.email && row.email.toLowerCase() === adminEmail);
   if (!existingAdmin) {
-    const insertAdmin = db.prepare(`
+    await db.run(`
       INSERT INTO admins (id, email, password_hash, name)
-      VALUES (?, ?, ?, ?)
-    `);
-    insertAdmin.run(uuidv4(), adminEmail, localDefaultAdminHash, 'Church Admin');
+      VALUES ($1, $2, $3, $4)
+    `, [uuidv4(), adminEmail, localDefaultAdminHash, 'Church Admin']);
   }
 }
 
@@ -134,8 +135,7 @@ export async function getPublicContent() {
     about: null,
   };
 
-  const stmt = db.prepare(`SELECT id, type, content FROM collections ORDER BY created_at DESC`);
-  const rows = stmt.all();
+  const rows = await db.all(`SELECT id, type, content FROM collections ORDER BY created_at DESC`);
 
   for (const row of rows) {
     try {
@@ -157,8 +157,7 @@ export async function getPublicContent() {
   result.events.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 
   // Get About page
-  const aboutStmt = db.prepare(`SELECT * FROM about_page WHERE id = 'main'`);
-  const aboutRow = aboutStmt.get();
+  const aboutRow = await db.get(`SELECT * FROM about_page WHERE id = 'main'`);
   if (aboutRow) {
     result.about = {
       welcomeTitle: aboutRow.welcome_title || '',
@@ -175,8 +174,7 @@ export async function getPublicContent() {
 
 export async function getItemByType(type, id) {
   const db = getDb();
-  const stmt = db.prepare(`SELECT content FROM collections WHERE type = ? AND id = ?`);
-  const row = stmt.get(type, id);
+  const row = await db.get(`SELECT content FROM collections WHERE type = $1 AND id = $2`, [type, id]);
   if (!row) return null;
   try {
     return { id, ...JSON.parse(row.content) };
@@ -199,14 +197,14 @@ for (const type of TYPES) {
         ? normalizeLeadershipItem({ ...body, id: DEFAULT_LEADERSHIP_ID })
         : { id, ...body };
       const recordId = type === 'leadership' ? DEFAULT_LEADERSHIP_ID : id;
-      const stmt = db.prepare(`
-        INSERT INTO collections (id, type, content)
-        VALUES (?, ?, ?)
+      await db.run(
+        `INSERT INTO collections (id, type, content)
+        VALUES ($1, $2, $3)
         ON CONFLICT(type, id) DO UPDATE SET
-          content = excluded.content,
-          updated_at = CURRENT_TIMESTAMP
-      `);
-      stmt.run(recordId, type, JSON.stringify(item));
+          content = EXCLUDED.content,
+          updated_at = CURRENT_TIMESTAMP`,
+        [recordId, type, JSON.stringify(item)]
+      );
       return item;
     },
     update: async (id, body) => {
@@ -217,12 +215,12 @@ for (const type of TYPES) {
         ? normalizeLeadershipItem({ ...existing, ...body, id: DEFAULT_LEADERSHIP_ID })
         : { ...existing, ...body, id };
       const recordId = type === 'leadership' ? DEFAULT_LEADERSHIP_ID : id;
-      const stmt = db.prepare(`
-        UPDATE collections
-        SET content = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE type = ? AND id = ?
-      `);
-      stmt.run(JSON.stringify(updated), type, recordId);
+      await db.run(
+        `UPDATE collections
+        SET content = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE type = $2 AND id = $3`,
+        [JSON.stringify(updated), type, recordId]
+      );
       return updated;
     },
     remove: async (id) => {
@@ -230,37 +228,36 @@ for (const type of TYPES) {
       if (type === 'leadership') {
         // When removing a leadership item, delete the record instead of
         // overwriting it with the default so admin changes are not lost.
-        const stmt = db.prepare(`DELETE FROM collections WHERE type = ? AND id = ?`);
-        stmt.run(type, id);
+        await db.run(`DELETE FROM collections WHERE type = $1 AND id = $2`, [type, id]);
         return;
       }
-      const stmt = db.prepare(`DELETE FROM collections WHERE type = ? AND id = ?`);
-      stmt.run(type, id);
+      await db.run(`DELETE FROM collections WHERE type = $1 AND id = $2`, [type, id]);
     },
   };
 }
 
 export async function updateAboutPage(body) {
   const db = getDb();
-  const stmt = db.prepare(`
-    INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text, updated_at)
-    VALUES ('main', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  await db.run(
+    `INSERT INTO about_page (id, welcome_title, welcome_text, mission, vision, history, values_text, updated_at)
+    VALUES ('main', $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
-      welcome_title = excluded.welcome_title,
-      welcome_text = excluded.welcome_text,
-      mission = excluded.mission,
-      vision = excluded.vision,
-      history = excluded.history,
-      values_text = excluded.values_text,
+      welcome_title = EXCLUDED.welcome_title,
+      welcome_text = EXCLUDED.welcome_text,
+      mission = EXCLUDED.mission,
+      vision = EXCLUDED.vision,
+      history = EXCLUDED.history,
+      values_text = EXCLUDED.values_text,
       updated_at = CURRENT_TIMESTAMP
-  `);
-  stmt.run(
-    body.welcomeTitle || '',
-    body.welcomeText || '',
-    body.mission || '',
-    body.vision || '',
-    body.history || '',
-    body.values || ''
+  `,
+    [
+      body.welcomeTitle || '',
+      body.welcomeText || '',
+      body.mission || '',
+      body.vision || '',
+      body.history || '',
+      body.values || '',
+    ]
   );
   return {
     welcomeTitle: body.welcomeTitle || '',
@@ -274,8 +271,7 @@ export async function updateAboutPage(body) {
 
 export async function deleteAboutPage() {
   const db = getDb();
-  const stmt = db.prepare(`DELETE FROM about_page WHERE id = 'main'`);
-  stmt.run();
+  await db.run(`DELETE FROM about_page WHERE id = 'main'`);
 }
 
 export async function findAdminByEmail(email) {
@@ -283,7 +279,7 @@ export async function findAdminByEmail(email) {
   if (!target) return null;
 
   const db = getDb();
-  const rows = db.prepare(`SELECT * FROM admins`).all();
+  const rows = await db.all(`SELECT * FROM admins`);
   const matchingAdmin = rows.find((admin) => {
     const rowEmail = String(admin.email || '').toLowerCase();
     const rowName = String(admin.name || '').toLowerCase();
@@ -308,8 +304,7 @@ export async function findAdminByEmail(email) {
 
 export async function findAdminById(id) {
   const db = getDb();
-  const stmt = db.prepare(`SELECT id, email, name FROM admins WHERE id = ?`);
-  const found = stmt.get(id);
+  const found = await db.get(`SELECT id, email, name FROM admins WHERE id = $1`, [id]);
   if (found) return found;
 
   return {
@@ -322,28 +317,26 @@ export async function findAdminById(id) {
 export async function updateAdminPassword(id, passwordHash) {
   localDefaultAdminHash = passwordHash;
   const db = getDb();
-  const stmt = db.prepare(`UPDATE admins SET password_hash = ? WHERE id = ?`);
-  stmt.run(passwordHash, id);
+  await db.run(`UPDATE admins SET password_hash = $1 WHERE id = $2`, [passwordHash, id]);
 }
 
 export async function logSocialPublish(entry) {
   const db = getDb();
-  const stmt = db.prepare(`
-    INSERT INTO social_logs (id, platform, content_id, content_type, status, response)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    uuidv4(),
-    entry.platform || '',
-    entry.contentId || '',
-    entry.contentType || '',
-    entry.status || '',
-    JSON.stringify(entry.response || {})
+  await db.run(
+    `INSERT INTO social_logs (id, platform, content_id, content_type, status, response)
+    VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      uuidv4(),
+      entry.platform || '',
+      entry.contentId || '',
+      entry.contentType || '',
+      entry.status || '',
+      JSON.stringify(entry.response || {}),
+    ]
   );
 }
 
 export async function getSocialLogs(limit = 50) {
   const db = getDb();
-  const stmt = db.prepare(`SELECT * FROM social_logs ORDER BY created_at DESC LIMIT ?`);
-  return stmt.all(limit);
+  return await db.all(`SELECT * FROM social_logs ORDER BY created_at DESC LIMIT $1`, [limit]);
 }

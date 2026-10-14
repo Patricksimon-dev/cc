@@ -8,10 +8,13 @@
     "start": "node src/index.js",
     "cleanup-uploads": "node src/db/cleanupUploads.js",
     "clear-content": "node src/db/clearContent.js"
+    ,"migrate-postgres": "node src/db/migrateToPostgres.mjs",
+    "test-crud": "node src/scripts/testCrud.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^13.0.3",
+    "pg": "^8.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",

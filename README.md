@@ -36,6 +36,37 @@ When saving announcements, sermons, or events in admin, check **Post to social w
 
 View publish history under **Admin → Social Media**.
 
+## Postgres / Neon (migration & deployment)
+
+This project can use a serverless Postgres (Neon) instance for persistence. Follow these steps to migrate your local SQLite data and run the app with Neon:
+
+1. Create a Neon Postgres database and get the connection string (e.g. `postgres://user:pass@host:5432/dbname`).
+2. Set the connection string as the `DATABASE_URL` environment variable.
+
+PowerShell example (one-shot):
+```powershell
+$env:DATABASE_URL="postgres://user:pass@host:5432/dbname"
+# Run the migration script to copy existing SQLite data into Postgres
+node src/db/migrateToPostgres.mjs
+
+# Start the server using the same DATABASE_URL
+node src/index.js
+```
+
+You can run the migration and verification scripts in parallel (PowerShell background jobs):
+```powershell
+$env:DATABASE_URL="postgres://user:pass@host:5432/dbname"
+Start-Job -ScriptBlock { $env:DATABASE_URL = $env:DATABASE_URL; node src/db/migrateToPostgres.mjs }
+Start-Job -ScriptBlock { $env:DATABASE_URL = $env:DATABASE_URL; node src/scripts/testCrud.mjs }
+Get-Job | Wait-Job
+Get-Job | Receive-Job
+```
+
+Notes
+- The app now requires `DATABASE_URL` to use Postgres persistence; starting without it will throw an error.
+- Uploaded media are stored in the `uploads` table and served from `/api/uploads/:id`.
+- If you plan to deploy to Neon, ensure `DATABASE_URL` and environment secrets are configured in the Neon project settings.
+
 ## Endpoints
 
 | Method | Path | Auth |

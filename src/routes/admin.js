@@ -6,7 +6,18 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
-import { deleteUpload, saveUpload } from '../db/sqlitePersistence.js'
+import { deleteUpload as sqliteDeleteUpload, saveUpload as sqliteSaveUpload } from '../db/sqlitePersistence.js'
+let saveUploadFn = sqliteSaveUpload
+let deleteUploadFn = sqliteDeleteUpload
+try {
+  if (process.env.DATABASE_URL) {
+    const pg = await import('../db/postgresUploads.js')
+    saveUploadFn = pg.saveUpload
+    deleteUploadFn = pg.deleteUpload
+  }
+} catch (e) {
+  // fallback to sqlite implementations if postgres helper not available
+}
 import {
   contentRepositories,
   getItemByType,
@@ -57,10 +68,10 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     const fileId = uuidv4()
     const base64Data = req.file.buffer.toString('base64')
-    saveUpload(fileId, req.file.originalname, req.file.mimetype, base64Data)
+    await saveUploadFn(fileId, req.file.originalname, req.file.mimetype, base64Data)
 
     if (req.body.previousUrl) {
-      deleteUpload(req.body.previousUrl)
+      try { await deleteUploadFn(req.body.previousUrl) } catch (e) { /* ignore */ }
     }
 
     return res.json({ url: `/api/uploads/${fileId}` })
