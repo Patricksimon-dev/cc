@@ -1,11 +1,14 @@
 import 'dotenv/config'
 
-const usePostgres = Boolean(process.env.DATABASE_URL || process.env.PG_CONNECTION_STRING)
-const persistence = usePostgres
+export const storageEngine = (process.env.STORAGE_ENGINE || 'sqlite').toLowerCase()
+if (!['sqlite', 'postgres'].includes(storageEngine)) {
+  throw new Error('STORAGE_ENGINE must be either "sqlite" or "postgres"')
+}
+
+const persistence = storageEngine === 'postgres'
   ? await import('./postgresPersistence.js')
   : await import('./sqlitePersistence.js')
 
-export const storageEngine = usePostgres ? 'postgres' : 'sqlite'
 export const getDb = persistence.getDb
 export const getUpload = persistence.getUpload
 export const saveUpload = persistence.saveUpload

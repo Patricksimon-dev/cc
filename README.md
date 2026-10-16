@@ -11,11 +11,9 @@ npm run dev
 
 API runs at **http://localhost:3001**.
 
-The API uses SQLite for local development (the database file can be selected with `SQLITE_DATABASE_PATH`). Set `DATABASE_URL` (or `PG_CONNECTION_STRING`) to a persistent Postgres/Neon connection string in the hosting provider's environment so announcements, sermons, activities, About content, and uploads survive server restarts and redeployments. The API creates/updates its Postgres tables at startup. `API_PUBLIC_URL` should be the public API origin so uploaded image URLs point to the API server.
+The API uses SQLite by default. Set `SQLITE_DATABASE_PATH` to choose its database file. On a hosted deployment, place that file on the provider's persistent disk and set the environment variable to that mounted path; a temporary filesystem can lose SQLite data on restart or redeploy. Announcements, sermons, activities, and About content do not expire automatically. `API_PUBLIC_URL` should be the public API origin so uploaded image URLs point to the API server.
 
 Default demo content is disabled unless `SEED_DEFAULT_CONTENT=true` is explicitly configured.
-
-New sermons and announcements are automatically deleted one month after they are posted. Cleanup runs at server startup and hourly; existing posts are not assigned an expiry date.
 
 To inspect uploaded media storage, run `npm run cleanup-uploads`. To remove all uploaded files from GridFS and free Atlas storage, run `npm run cleanup-uploads -- --delete-all`. This does not remove leadership or event records, but their old image links will need to be replaced.
 
@@ -38,12 +36,12 @@ When saving announcements, sermons, or events in admin, check **Post to social w
 
 View publish history under **Admin → Social Media**.
 
-## Postgres / Neon (migration & deployment)
+## Optional Postgres / Neon storage
 
-This project can use a serverless Postgres (Neon) instance for persistence. Follow these steps to migrate your local SQLite data and run the app with Neon:
+To use Postgres instead of the default SQLite, configure:
 
 1. Create a Neon Postgres database and get the connection string (e.g. `postgres://user:pass@host:5432/dbname`).
-2. Set the connection string as `DATABASE_URL` in the hosting provider's environment settings. Hosted instances must use Postgres; the local SQLite file is not durable across many redeployments.
+2. Set `STORAGE_ENGINE=postgres` and `DATABASE_URL` in the environment.
 
 PowerShell example (one-shot):
 ```powershell
@@ -65,7 +63,7 @@ Get-Job | Receive-Job
 ```
 
 Notes
-- The API selects Postgres when `DATABASE_URL` or `PG_CONNECTION_STRING` is configured; otherwise it uses SQLite for local development.
+- SQLite is selected by default. Postgres is selected only when `STORAGE_ENGINE=postgres`.
 - Existing SQLite content can be copied into Postgres with `npm run migrate-postgres` before deploying.
 - Uploaded media are stored in the `uploads` table and served from `/api/uploads/:id`.
 - If you plan to deploy to Neon, ensure `DATABASE_URL` and environment secrets are configured in the Neon project settings.

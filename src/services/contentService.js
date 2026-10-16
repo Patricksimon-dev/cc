@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import { getDb, storageEngine } from '../db/database.js';
+import { getDb } from '../db/database.js';
 import { config } from '../config.js';
 
 let localDefaultAdminHash = bcrypt.hashSync(config.adminPassword, 12);
@@ -187,23 +187,6 @@ export async function getItemByType(type, id) {
   }
 }
 
-function oneMonthFromNow() {
-  const expiry = new Date();
-  expiry.setUTCMonth(expiry.getUTCMonth() + 1);
-  return expiry.toISOString();
-}
-
-export async function deleteExpiredContent() {
-  const db = getDb();
-  const result = await db.run(
-    `DELETE FROM collections
-    WHERE type IN ('announcements', 'sermons')
-      AND expires_at IS NOT NULL
-      AND ${storageEngine === 'postgres' ? 'expires_at <= CURRENT_TIMESTAMP' : 'datetime(expires_at) <= CURRENT_TIMESTAMP'}`
-  );
-  return result.changes;
-}
-
 export const contentRepositories = {};
 
 for (const type of TYPES) {
@@ -218,7 +201,6 @@ for (const type of TYPES) {
         ? normalizeLeadershipItem({ ...body, id: DEFAULT_LEADERSHIP_ID })
         : { id, ...body };
       const recordId = type === 'leadership' ? DEFAULT_LEADERSHIP_ID : id;
-      const expiresAt = ['announcements', 'sermons'].includes(type) ? oneMonthFromNow() : null;
       await db.run(
         `INSERT INTO collections (id, type, content, expires_at)
         VALUES ($1, $2, $3, $4)
@@ -226,7 +208,7 @@ for (const type of TYPES) {
           content = EXCLUDED.content,
           updated_at = CURRENT_TIMESTAMP,
           expires_at = EXCLUDED.expires_at`,
-        [recordId, type, JSON.stringify(item), expiresAt]
+        [recordId, type, JSON.stringify(item), null]
       );
       return item;
     },
