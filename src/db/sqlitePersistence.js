@@ -68,11 +68,20 @@ function ensureSchema() {
       response TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS contact_messages (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
     `CREATE INDEX IF NOT EXISTS idx_collections_type ON collections(type)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_collections_type_id ON collections(type, id)`,
     `CREATE INDEX IF NOT EXISTS idx_about_page_id ON about_page(id)`,
     `CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email)`,
     `CREATE INDEX IF NOT EXISTS idx_social_logs_created_at ON social_logs(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at)`,
   ];
 
   for (const statement of schema) {
