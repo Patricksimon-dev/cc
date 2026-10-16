@@ -15,6 +15,8 @@ Content is synchronized to MongoDB when `MONGODB_URI` is configured. This is req
 
 Default demo content is disabled unless `SEED_DEFAULT_CONTENT=true` is explicitly configured.
 
+New sermons and announcements are automatically deleted one month after they are posted. Cleanup runs at server startup and hourly; existing posts are not assigned an expiry date.
+
 To inspect uploaded media storage, run `npm run cleanup-uploads`. To remove all uploaded files from GridFS and free Atlas storage, run `npm run cleanup-uploads -- --delete-all`. This does not remove leadership or event records, but their old image links will need to be replaced.
 
 ## Default admin

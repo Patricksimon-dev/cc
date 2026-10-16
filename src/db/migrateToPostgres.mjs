@@ -17,7 +17,11 @@ if (!fs.existsSync(sqlitePath)) {
   process.exit(1);
 }
 
-const sqlite = new Database(sqlitePath, { readonly: true });
+const sqlite = new Database(sqlitePath);
+const collectionColumns = sqlite.prepare('PRAGMA table_info(collections)').all();
+if (!collectionColumns.some((column) => column.name === 'expires_at')) {
+  sqlite.prepare('ALTER TABLE collections ADD COLUMN expires_at DATETIME').run();
+}
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function ensureSchema() {
@@ -28,8 +32,11 @@ async function ensureSchema() {
       content TEXT NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP WITH TIME ZONE,
       PRIMARY KEY (type, id)
     );
+
+    ALTER TABLE collections ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
 
     CREATE TABLE IF NOT EXISTS about_page (
       id TEXT PRIMARY KEY DEFAULT 'main',
@@ -99,9 +106,9 @@ async function migrateTable(sqliteQuery, insertSql, transformRow = (r) => r) {
 
     console.log('Migrating collections...');
     await migrateTable(
-      `SELECT id, type, content, created_at, updated_at FROM collections`,
-      `INSERT INTO collections (id, type, content, created_at, updated_at) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (type,id) DO UPDATE SET content = EXCLUDED.content, updated_at = EXCLUDED.updated_at`,
-      (r) => [r.id, r.type, r.content, r.created_at || new Date(), r.updated_at || new Date()]
+      `SELECT id, type, content, created_at, updated_at, expires_at FROM collections`,
+      `INSERT INTO collections (id, type, content, created_at, updated_at, expires_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (type,id) DO UPDATE SET content = EXCLUDED.content, updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at`,
+      (r) => [r.id, r.type, r.content, r.created_at || new Date(), r.updated_at || new Date(), r.expires_at || null]
     );
 
     console.log('Migrating about_page...');

@@ -30,7 +30,8 @@ function ensureSchema() {
       type TEXT NOT NULL,
       content TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME
     )`,
     `CREATE TABLE IF NOT EXISTS about_page (
       id TEXT PRIMARY KEY,
@@ -73,6 +74,11 @@ function ensureSchema() {
 
   for (const statement of schema) {
     db.prepare(statement).run();
+  }
+
+  const collectionColumns = db.prepare('PRAGMA table_info(collections)').all();
+  if (!collectionColumns.some((column) => column.name === 'expires_at')) {
+    db.prepare('ALTER TABLE collections ADD COLUMN expires_at DATETIME').run();
   }
 }
 

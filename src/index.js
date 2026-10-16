@@ -11,7 +11,7 @@ import adminRoutes from './routes/admin.js'
 import socialRoutes from './routes/social.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
-import { getPublicContent, initializeContentStore } from './services/contentService.js'
+import { deleteExpiredContent, getPublicContent, initializeContentStore } from './services/contentService.js'
 import { getUpload as sqliteGetUpload } from './db/sqlitePersistence.js'
 let getUploadFn = sqliteGetUpload
 try {
@@ -25,6 +25,12 @@ try {
 
 // Initialize SQLite content store
 await initializeContentStore()
+await deleteExpiredContent()
+setInterval(() => {
+  deleteExpiredContent().catch((err) => {
+    console.error('Failed to delete expired sermons and announcements:', err)
+  })
+}, 60 * 60 * 1000)
 console.info('Server initialized with SQLite content store.')
 
 const app = express()
