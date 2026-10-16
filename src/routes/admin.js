@@ -6,18 +6,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { requireAuth } from '../middleware/auth.js'
 import { config } from '../config.js'
-import { deleteUpload as sqliteDeleteUpload, saveUpload as sqliteSaveUpload } from '../db/sqlitePersistence.js'
-let saveUploadFn = sqliteSaveUpload
-let deleteUploadFn = sqliteDeleteUpload
-try {
-  if (process.env.DATABASE_URL) {
-    const pg = await import('../db/postgresUploads.js')
-    saveUploadFn = pg.saveUpload
-    deleteUploadFn = pg.deleteUpload
-  }
-} catch (e) {
-  // fallback to sqlite implementations if postgres helper not available
-}
+import { deleteUpload as deleteUploadFn, saveUpload as saveUploadFn } from '../db/database.js'
 import {
   contentRepositories,
   getItemByType,

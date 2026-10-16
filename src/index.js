@@ -12,18 +12,9 @@ import socialRoutes from './routes/social.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { deleteExpiredContent, getPublicContent, initializeContentStore } from './services/contentService.js'
-import { getUpload as sqliteGetUpload } from './db/sqlitePersistence.js'
-let getUploadFn = sqliteGetUpload
-try {
-  if (process.env.DATABASE_URL) {
-    const pg = await import('./db/postgresUploads.js')
-    getUploadFn = pg.getUpload
-  }
-} catch (e) {
-  // fallback to sqlite getUpload
-}
+import { getUpload as getUploadFn, initializePersistence, storageEngine } from './db/database.js'
 
-// Initialize SQLite content store
+await initializePersistence()
 await initializeContentStore()
 await deleteExpiredContent()
 setInterval(() => {
@@ -31,7 +22,7 @@ setInterval(() => {
     console.error('Failed to delete expired sermons and announcements:', err)
   })
 }, 60 * 60 * 1000)
-console.info('Server initialized with SQLite content store.')
+console.info(`Server initialized with ${storageEngine} content store.`)
 
 const app = express()
 

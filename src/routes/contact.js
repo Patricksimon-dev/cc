@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import { getDb } from '../db/sqlitePersistence.js'
+import { getDb } from '../db/database.js'
 import { mailTransporter, config } from '../config.js'
 
 const router = Router()
@@ -15,11 +15,10 @@ router.post('/contact', async (req, res, next) => {
   try {
     const id = uuidv4()
     const db = getDb()
-    const stmt = db.prepare(`
+    await db.run(`
       INSERT INTO contact_messages (id, name, email, subject, message)
-      VALUES (?, ?, ?, ?, ?)
-    `)
-    stmt.run(id, name.trim(), email.trim(), subject.trim(), message.trim())
+      VALUES ($1, $2, $3, $4, $5)
+    `, [id, name.trim(), email.trim(), subject.trim(), message.trim()])
 
     const isEmailConfigured =
       config.emailUser &&

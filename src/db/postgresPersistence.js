@@ -23,11 +23,72 @@ export async function get(text, params = []) {
 }
 
 export async function run(text, params = []) {
-  return pool.query(text, params);
+  const result = await pool.query(text, params);
+  return { changes: result.rowCount, rowCount: result.rowCount };
 }
 
 export function getDb() {
   return { all, get, run, query };
+}
+
+export async function initializePersistence() {
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS collections (
+      id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP WITH TIME ZONE,
+      PRIMARY KEY (type, id)
+    )`,
+    `ALTER TABLE collections ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE`,
+    `CREATE TABLE IF NOT EXISTS about_page (
+      id TEXT PRIMARY KEY DEFAULT 'main',
+      welcome_title TEXT,
+      welcome_text TEXT,
+      mission TEXT,
+      vision TEXT,
+      history TEXT,
+      values_text TEXT,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS uploads (
+      id TEXT PRIMARY KEY,
+      filename TEXT,
+      mime_type TEXT,
+      data_base64 TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS admins (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS social_logs (
+      id TEXT PRIMARY KEY,
+      platform TEXT,
+      content_id TEXT,
+      content_type TEXT,
+      status TEXT,
+      response TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS contact_messages (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`,
+  ]
+
+  for (const statement of statements) {
+    await pool.query(statement)
+  }
 }
 
 export async function saveUpload(id, filename, mimeType, base64Data) {

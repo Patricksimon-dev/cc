@@ -5,9 +5,11 @@ import Database from 'better-sqlite3';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(__dirname, '../../data');
-const dbPath = path.join(dataDir, 'church.db');
+const dbPath = process.env.SQLITE_DATABASE_PATH
+  ? path.resolve(process.env.SQLITE_DATABASE_PATH)
+  : path.join(dataDir, 'church.db');
 
-fs.mkdirSync(dataDir, { recursive: true });
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
@@ -67,6 +69,7 @@ function ensureSchema() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE INDEX IF NOT EXISTS idx_collections_type ON collections(type)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_collections_type_id ON collections(type, id)`,
     `CREATE INDEX IF NOT EXISTS idx_about_page_id ON about_page(id)`,
     `CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email)`,
     `CREATE INDEX IF NOT EXISTS idx_social_logs_created_at ON social_logs(created_at)`,

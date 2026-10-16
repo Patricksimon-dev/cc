@@ -78,4 +78,4 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-console.info('Postgres content persistence is enabled when DATABASE_URL is set.');
+console.info('Postgres persistence is enabled when DATABASE_URL or PG_CONNECTION_STRING is set.');

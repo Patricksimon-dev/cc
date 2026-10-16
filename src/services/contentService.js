@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../db/sqlitePersistence.js';
+import { getDb, storageEngine } from '../db/database.js';
 import { config } from '../config.js';
 
 let localDefaultAdminHash = bcrypt.hashSync(config.adminPassword, 12);
@@ -109,7 +109,11 @@ export async function initializeContentStore() {
     if (defaultLeadershipExists) {
       await db.run(`UPDATE collections SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND type = 'leadership'`, [keepDefaultLeadership, DEFAULT_LEADERSHIP_ID]);
     } else {
-      await db.run(`INSERT INTO collections (id, type, content) VALUES ($1, 'leadership', $2)`, [DEFAULT_LEADERSHIP_ID, keepDefaultLeadership]);
+      await db.run(
+        `INSERT INTO collections (id, type, content) VALUES ($1, 'leadership', $2)
+        ON CONFLICT(type, id) DO NOTHING`,
+        [DEFAULT_LEADERSHIP_ID, keepDefaultLeadership]
+      );
     }
   }
 
@@ -195,7 +199,7 @@ export async function deleteExpiredContent() {
     `DELETE FROM collections
     WHERE type IN ('announcements', 'sermons')
       AND expires_at IS NOT NULL
-      AND datetime(expires_at) <= CURRENT_TIMESTAMP`
+      AND ${storageEngine === 'postgres' ? 'expires_at <= CURRENT_TIMESTAMP' : 'datetime(expires_at) <= CURRENT_TIMESTAMP'}`
   );
   return result.changes;
 }
